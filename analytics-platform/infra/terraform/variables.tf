@@ -1,0 +1,16 @@
+variable "env" {
+  description = "Environment: dev, staging, prod"
+  type        = string
+  default     = "dev"
+}
+
+variable "aws_region" {
+  description = "AWS region"
+  type        = string
+  default     = "us-east-1"
+}
+
+variable "bucket_name" {
+  description = "S3 bucket name for the data lake"
+  type        = string
+}
