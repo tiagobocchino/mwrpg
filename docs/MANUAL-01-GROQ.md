@@ -1,5 +1,9 @@
 # Manual 01 — Criar conta e chave da Groq
 
+**Produção:** https://mwrpg-one.vercel.app/ — depois de colar a chave na
+Vercel (Manual 03), teste jogando um turno ali; se a narração não vier
+"nova" (cair em "Modo offline..."), veja "Erros comuns" no Manual 03.
+
 **Ordem recomendada:** faça este primeiro (é o mais rápido), depois o
 Manual 02 (Supabase), depois o Manual 03 (Vercel) — a chave da Groq e
 as chaves do Supabase são coladas na Vercel no final.

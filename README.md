@@ -1,5 +1,7 @@
 # MWRPG — A Coroa Enterrada de Ys
 
+**Produção:** [mwrpg-one.vercel.app](https://mwrpg-one.vercel.app/)
+
 RPG solo narrativo conduzido por Mestre IA. Chat central, mapa de cenário, ficha do jogador + 3 NPCs companheiros. Sistema próprio **D6 das Três Letras** (CRP/MNT/ALM, 2d6 + atributo). Progresso salvo automaticamente no navegador (localStorage) — botão "Continuar" retoma a última campanha.
 
 > Cenário inicial: lenda bretã de Ys, fantasia low-magic. Fontes em domínio público (SRD 5.1 CC-BY 4.0, Project Gutenberg, Sacred Texts).
@@ -51,13 +53,13 @@ Abra `http://localhost:8000`.
 
 ## Deploy no Vercel (100% free)
 
-1. Suba este projeto para um repositório GitHub.
-2. Em [vercel.com](https://vercel.com) → **Add New → Project** → importe o repo.
-3. Framework preset: **Other** (é HTML puro).
-4. **Build & Output:** deixe em branco. Vercel serve estático direto.
-5. Deploy.
+Já feito — projeto `mwrpg` conectado a `tiagobocchino/mwrpg`, deploy
+automático a cada push em `main`. Passo a passo completo (pra recriar
+do zero, se precisar) em `docs/MANUAL-03-VERCEL.md`.
 
-> O `vercel.json` já está incluso e configura SPA-like routing.
+Resumo: Framework preset **Other**, Build/Install Command vazios,
+Output Directory vazio (é HTML estático puro). `vercel.json` já
+configura headers e clean URLs.
 
 ## Sobre o Mestre IA fora do artifact host
 

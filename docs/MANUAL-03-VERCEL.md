@@ -1,5 +1,11 @@
 # Manual 03 — Conectar a Vercel e fazer o primeiro deploy
 
+**Status atual (31/08/2026): já feito.** Projeto `mwrpg` conectado,
+deploy automático a cada push em `main`. URL de produção:
+**https://mwrpg-one.vercel.app/** — guarde este manual mesmo assim,
+serve pra recriar do zero se um dia precisar (nova conta, projeto
+apagado, etc.).
+
 **Ordem recomendada:** faça por último — este manual pede as chaves
 que você já deve ter em mãos dos Manuais 01 (Groq) e 02 (Supabase).
 

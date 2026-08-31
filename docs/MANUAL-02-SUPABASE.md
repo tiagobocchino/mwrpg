@@ -1,5 +1,8 @@
 # Manual 02 — Criar (recriar) o projeto Supabase
 
+**Produção:** https://mwrpg-one.vercel.app/ — as chaves daqui são
+coladas na Vercel (Manual 03) junto com a da Groq.
+
 **Ordem recomendada:** faça depois do Manual 01 (Groq), antes do Manual
 03 (Vercel) — as chaves daqui também são coladas na Vercel no final.
 
