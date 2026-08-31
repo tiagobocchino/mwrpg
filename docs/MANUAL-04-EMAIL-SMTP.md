@@ -53,27 +53,45 @@ não é retrabalho, é evolução.
 7. **(Credenciais SMTP)** Ainda no painel, vá em **Settings** →
    **SMTP & API** → aba **SMTP**.
 8. **(Credenciais SMTP)** Anote: **Servidor** `smtp-relay.brevo.com`,
-   **Porta** `587`, **Login** = o email da sua conta Brevo (não
-   confunda com o remetente do passo 5 — pode ser o mesmo email, mas
-   esse campo aqui é sempre o da conta), e **Senha** = clique em
-   **Generate a new SMTP key** (ou copie uma existente). Essa chave
-   **não** é sua senha da conta nem uma API key — é uma credencial só
-   pra SMTP. Copie sem espaço extra no início/fim.
+   **Porta** `587`. **Login**: **⚠️ não é o email da sua conta Brevo** —
+   é um identificador próprio que o Brevo gera, no formato
+   `xxxxxxxxx@smtp-brevo.com` (aparece escrito exatamente assim no campo
+   "Fazer login" dessa tela — copie ele literalmente, não retype de
+   memória, e não confunda com o email de cadastro nem com o remetente
+   do passo 5). **Senha** = clique em **Generate a new SMTP key** (ou
+   copie uma existente). Essa chave **não** é sua senha da conta nem
+   uma API key — é uma credencial só pra SMTP. Copie sem espaço extra
+   no início/fim.
 9. **(Configurar no Supabase)** No painel do Supabase (o mesmo projeto
    do Manual 02) → **Authentication** → **Emails** (ou **Sign In /
    Providers** → procure "SMTP Settings").
 10. **(Configurar no Supabase)** Ative **Enable Custom SMTP** e
     preencha: **Sender email** = o email verificado nos passos 5-6;
     **Sender name** = `MWRPG`; **Host** = `smtp-relay.brevo.com`;
-    **Port** = `587`; **Username** = o login da conta Brevo (passo 8);
-    **Password** = a chave SMTP gerada no passo 8 — **cole só aqui,
-    nunca no chat comigo**.
+    **Port** = `587`; **Username** = o login SMTP (`xxxxxxxxx@smtp-brevo.com`
+    — passo 8, **não** o email da conta); **Password** = a chave SMTP
+    gerada no passo 8 — **cole só aqui, nunca no chat comigo**.
 11. **(Configurar no Supabase)** Salve. O Supabase testa a conexão —
     se der erro aqui, veja "Erros comuns" abaixo.
-12. **(Opcional, recomendado)** Em **Authentication** → **Rate
+12. **(Segurança de rede, se aparecer)** Se o Brevo mostrar um aviso
+    tipo "endereços IP não autorizados estão bloqueados para as suas
+    chaves SMTP", vá em **Settings** → **Segurança** (ou o link do
+    próprio aviso) → **Bloquear endereços IP não autorizados** →
+    **desative** especificamente pra **"Chaves SMTP"** (deixe ativado
+    pra "Chaves API" se quiser, isso não afeta o login do jogo). O
+    Supabase não tem um IP fixo confiável pra cadastrar na lista de
+    permitidos, então desativar a trava é o caminho certo aqui, não uma
+    gambiarra.
+13. **(Opcional, recomendado)** Em **Authentication** → **Rate
     Limits**, confira o limite de emails por hora (com SMTP próprio o
     padrão sobe pra 30/hora — dá pra aumentar mais, mas 300/dia é o
     teto real do Brevo free).
+
+**Achado real (31/ago/2026, testado até funcionar de verdade)**: o erro
+mais comum aqui não é a chave nem a porta — é colocar o **email da
+conta** no campo Username em vez do **login SMTP** (`...@smtp-brevo.com`)
+que o Brevo mostra na própria tela. Isso gera exatamente o erro "535
+Authentication failed" nos logs do Supabase, mesmo com a chave certa.
 
 ---
 
@@ -123,6 +141,17 @@ email" depois é rápido, não é retrabalho.
 
 ## Erros comuns
 
+- **"Error sending confirmation email" no jogo / erro 500 genérico** —
+  esse é só um envelope; o motivo real fica no log de **Auth** do
+  Supabase (não no de "Postgres" nem "Edge" — são fontes de log
+  diferentes; troque a fonte na tela de Logs). Procure a entrada mais
+  recente e leia o campo `"error"` dentro do JSON.
+- **`535 "5.7.8 Authentication failed"` no log de Auth** — quase sempre
+  é o campo **Username** errado: precisa ser o login SMTP
+  (`...@smtp-brevo.com`, passo 8), não o email da conta Brevo. Foi
+  exatamente essa a causa na primeira vez que configuramos (31/ago/2026).
+- **Aviso de IP não autorizado no Brevo** — veja o passo 12: desative a
+  restrição de IP especificamente pra chaves SMTP.
 - **Supabase recusa salvar as configurações de SMTP** — confira porta
   (587) e se copiou a chave SMTP sem espaço/quebra de linha extra.
 - **Email não chega, sem erro nenhum aparente** — confira a caixa de
@@ -133,5 +162,5 @@ email" depois é rápido, não é retrabalho.
   no Supabase (passo 10) precisa ser exatamente o mesmo que você
   verificou no passo 5-6, letra por letra.
 - **Continua batendo em rate limit mesmo depois de configurar** — volte
-  no passo 12 e confirme que o limite em Authentication → Rate Limits
+  no passo 13 e confirme que o limite em Authentication → Rate Limits
   realmente subiu (às vezes fica salvo o valor antigo até um refresh).
