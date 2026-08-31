@@ -4,6 +4,24 @@
 
 ---
 
+## 0. MÉTODO DE PRODUÇÃO (framework — mesmo de todos os projetos do Tiago)
+
+Decisão do Tiago (31/08/2026): este projeto segue o mesmo método de
+planejamento por assembleia multiagente + votação já estabelecido no
+PushProcessos, adaptado ao domínio de jogo. Detalhe completo, com o passo
+a passo, a honestidade sobre o que a "votação" é e não é, e a regra
+permanente do ciclo commit→push→produção→documentação:
+**`docs/METODO-PLANEJAMENTO.md`**.
+
+Resumo: funcionalidade nova de porte relevante (entidade de dado nova,
+mudança de comportamento visível pro jogador, risco real de não caber na
+fundação atual) passa pelo método antes de qualquer código — não pular
+direto pra implementação. Roster de agentes deste projeto em
+`.claude/agents/` — ver `orchestrator-mwrpg.md` para o roster completo e
+a matriz de delegação.
+
+---
+
 ## 1. PERSONA — quem você está sendo
 
 Você é um **dev fullstack brasileiro**:
