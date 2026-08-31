@@ -147,36 +147,43 @@ mwrpg/
 ├── .gitignore
 ├── CLAUDE.md               # ESTE arquivo
 ├── Relatorio_Pesquisa_RPG.md   # base de conteúdo (bestiário, magias, raças, 25 enredos)
-├── docs/                   # método, assembleias, proveniência do acervo
+├── docs/                   # método, assembleias, proveniência do acervo, proposta do mapa
 ├── .claude/agents/         # roster de agentes deste projeto
+├── supabase/
+│   └── schema.sql          # tabelas characters + campaign_sessions, RLS (rodar 1x no SQL Editor do Supabase)
 ├── api/
-│   └── master.js           # Vercel Function — proxy pro Mestre IA via Groq (GROQ_API_KEY no servidor)
+│   ├── master.js           # Vercel Function — proxy pro Mestre IA via Groq (GROQ_API_KEY no servidor)
+│   └── config.js           # Vercel Function — devolve SUPABASE_URL + PUBLISHABLE_KEY pro cliente (seguro expor)
 └── src/
     ├── styles.css          # design system Manuscrito Vivo
     ├── data.js             # window.MWRPG_DATA — cenário, jogador, NPCs, mapa
     ├── acervo.js            # window.MWRPG_ACERVO — referências de domínio público, pickAcervoLore()
     ├── engine.js           # window.MWRPG_ENGINE — d6, roll2d6, COMBAT_ACTIONS
     ├── master.js           # window.MWRPG_MASTER — ask() [Groq → claude.complete → offline], SYSTEM_PROMPT
-    ├── storage.js           # window.MWRPG_STORAGE — save(), load(), clear(), hasSave() (localStorage, v0.2)
-    ├── components.jsx      # Chat, MapPanel, Sheet, DiceOverlay, Topbar, Option, Message
-    ├── app.jsx             # App — estado, fluxo de turno, handlers
+    ├── storage.js           # window.MWRPG_STORAGE — save(), load(), clear(), hasSave() (localStorage, fallback sem login)
+    ├── auth.js              # window.MWRPG_AUTH — login por link mágico (Supabase Auth), degrada sem login se não configurado
+    ├── cloudSync.js          # window.MWRPG_CLOUD — CRUD de campaign_sessions no Supabase
+    ├── components.jsx      # Chat, MapPanel, Sheet, DiceOverlay, Topbar, LoginGate, Option, Message
+    ├── app.jsx             # App — estado, fluxo de turno, login gate, limite de demo, handlers
     └── tweaks-panel.jsx    # painel de tweaks (TweaksPanel, TweakSection, TweakRadio, TweakToggle, useTweaks)
 ```
 
 ### 6.1 Ordem de carregamento (importante!)
 Em `index.html`, scripts carregam nesta ordem (dependências antes de quem usa):
-1. React + ReactDOM + Babel standalone (CDN, integrity hashes pinados)
+1. React + ReactDOM + Babel standalone + **supabase-js** (CDN, integrity hashes pinados)
 2. `src/data.js` (vanilla)
 3. `src/acervo.js` (vanilla — precisa vir antes de `master.js`, que usa `pickAcervoLore`)
 4. `src/engine.js` (vanilla)
 5. `src/master.js` (vanilla)
 6. `src/storage.js` (vanilla)
-7. `src/tweaks-panel.jsx` (Babel)
-8. `src/components.jsx` (Babel)
-9. `src/app.jsx` (Babel)
+7. `src/auth.js` (vanilla — usa `window.supabase.createClient`)
+8. `src/cloudSync.js` (vanilla — usa `window.MWRPG_AUTH.getClient()`)
+9. `src/tweaks-panel.jsx` (Babel)
+10. `src/components.jsx` (Babel)
+11. `src/app.jsx` (Babel)
 
-`api/master.js` não entra nessa lista — não é carregado pelo navegador, é
-uma Vercel Function separada, servida em `/api/master`.
+`api/master.js` e `api/config.js` não entram nessa lista — não são
+carregados pelo navegador, são Vercel Functions servidas em `/api/*`.
 
 ### 6.2 Convenção: scripts Babel não compartilham scope
 Cada `<script type="text/babel">` vira IIFE separada após Babel. Para compartilhar, sempre exporte via `Object.assign(window, { ... })` no fim do arquivo, e importe via `const X = window.X` no início do arquivo consumidor.
@@ -242,28 +249,36 @@ Atualmente expõe: `theme`, `allowFreeText`, `showDice`. Ampliar conforme novos 
 - Botão "Continuar" no topbar quando há save; some após "Recomeçar" ou após a primeira ação de uma sessão retomada.
 - "Recomeçar" limpa o save (`MWRPG_STORAGE.clear()`).
 
-### v0.3 — Mestre IA fora do artifact host ⏳ código pronto, aguardando credencial
+### v0.3 — Mestre IA fora do artifact host ✅ concluído e confirmado em produção
 - Decisão da Assembleia 02 (`docs/ASSEMBLEIA-02-LLM-GRATUITO-E-BANCO.md`): **Groq**, não Claude/OpenAI — camada gratuita real, não treina com os dados enviados (política verificada com fonte).
 - `api/master.js` (Vercel Function) → chama `openai/gpt-oss-120b` na Groq (substituto oficial do `llama-3.3-70b-versatile`, deprecado 16/ago/2026). Variável `GROQ_API_KEY` no Vercel env — **nunca commitada**.
-- `src/master.js` → `ask()` tenta Groq primeiro, cai pra `window.claude.complete` (artifact host) e por fim modo offline. Histórico podado (`trimHistory`) por causa do limite real do free tier da Groq: 8.000 tokens/minuto **por organização inteira**, não por usuário.
+- `src/master.js` → `ask()` tenta Groq primeiro, cai pra `window.claude.complete` (artifact host) e por fim modo offline. Histórico podado (`trimHistory`) por causa do limite real do free tier da Groq: 8.000 tokens/minuto e **200.000/dia por organização inteira**, não por usuário.
 - Contrato JSON mantido intacto.
-- **Não testado ponta a ponta ainda** — falta o Tiago criar a conta/chave da Groq. Testado o que dá: fallback gracioso quando a Groq não responde (confirmado local), montagem correta da requisição (formato Groq/OpenAI-compatible confirmado via documentação oficial).
+- **Confirmado em produção (31/08/2026)**: turno real jogado em `mwrpg-one.vercel.app`, narração veio da Groq, incorporou o resultado da rolagem na história, tom e tamanho dentro do especificado.
 
 ### Acervo de domínio público (junto com v0.3, prioridade do Tiago)
 - `src/acervo.js` — referências curadas (fábulas de Esopo, mitologia clássica, folclore brasileiro) com proveniência registrada em `docs/ACERVO-PROVENIENCIA.md`. Retrieval simples por tag (`pickAcervoLore`), sem embeddings ainda.
 - O mestre recebe até 2 entradas relevantes como "material de referência" no prompt — inspiração, não obrigação de uso.
 - Regra: nada entra no acervo sem proveniência registrada e licença verificada (ver checklist do Code QA Engineer).
 
-### v0.4 — RAG com Supabase pgvector
+### v0.4 — Login + persistência em nuvem + limite de demo ⏳ código pronto, aguardando confirmação em produção
+- **Login por link mágico** (Supabase Auth, `signInWithOtp`) — sem senha, menos atrito, sem "bagunça de dado" (identidade real por email). `src/auth.js` inicializa o cliente via `/api/config` (nunca chave hardcoded); se o Supabase não estiver configurado, o jogo funciona sem login, como sempre (degradação graciosa, mesmo padrão do Groq).
+- **Persistência em nuvem**: `supabase/schema.sql` (rodar uma vez no SQL Editor do Supabase) — tabelas `characters` e `campaign_sessions`, RLS por `auth.uid()`. `src/cloudSync.js` faz o CRUD. Substitui o `localStorage` da v0.2 quando logado; localStorage continua sendo o fallback de quem não está logado.
+- **Limite de 40 rodadas por campanha** (não por usuário nem por sala — justificativa: convida a testar de novo em vez de banir depois de uma campanha, e sustenta o custo de IA compartilhado). Ao chegar em 40, a partida trava (sem novas opções), com uma mensagem explicando que é demo, escrita em tom de convite. `DEMO_LIMIT` em `src/app.jsx`.
+- **Cota da Groq esgotada (429) tratada honestamente**: distinto do fallback offline genérico — mostra "o mestre precisa de um instante de silêncio", não conta como rodada, campanha continua salva. Ver `api/master.js` e `src/master.js` → `quotaExceededResponse()`.
+- **Risco real, sinalizado ao Tiago**: com `trimHistory` + `max_completion_tokens: 700`, uma campanha de 40 rodadas consome ~60k tokens — o teto de 200k/dia da Groq (org inteira) permite só ~3 campanhas completas por dia se todo mundo jogar até o fim. Não é um limite confortável para vários testers simultâneos.
+- **Não testado ponta a ponta ainda** — precisa do Tiago confirmar login real (clicar o link mágico) e uma campanha completa em produção.
+
+### Mapa com duas escalas — proposta feita, aguardando aprovação
+Ver `docs/PROPOSTA-MAPA.md`. Recomendação: Leaflet.js (`CRS.Simple`, ~46KB
+gzip, CDN, cabe no zero-build) + arte CC0 do Kenney.nl (cidade + interior
+da taberna). Não implementado — só a proposta.
+
+### v0.5 — RAG com Supabase pgvector
 - 4 coleções: `regras`, `bestiario`, `lore_mundo`, `historico_campanha`.
 - Ingestão dos CSVs descritos no Relatório §4–8.
 - Embeddings via `text-embedding-3-small` (OpenAI) ou `voyage-3-lite`.
 - Mestre puxa top-5 trechos relevantes a cada turno.
-
-### v0.5 — Auth + multi-personagem
-- Supabase Auth (magic link).
-- Tabela `characters` (1 user → N personagens).
-- Tabela `sessions` (snapshots de campanha).
 
 ### v0.6 — Combate tático
 - Hex grid opcional sobre o mapa quando `mode === 'combat'`.

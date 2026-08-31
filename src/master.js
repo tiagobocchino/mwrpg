@@ -89,10 +89,28 @@ Mantenha continuidade com o histórico.`;
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messages: buildGroqMessages(history, latest) })
     });
+    if (res.status === 429) {
+      const body = await res.json().catch(() => ({}));
+      const err = new Error('groq_quota_exceeded');
+      err.quotaExceeded = true;
+      err.retryAfter = body.retryAfter || null;
+      throw err;
+    }
     if (!res.ok) throw new Error('groq_http_' + res.status);
     const data = await res.json();
     if (!data.text) throw new Error('groq_empty_response');
     return parseResponse(data.text);
+  }
+
+  function quotaExceededResponse() {
+    return {
+      narration:
+        '(O mestre precisa de um instante de silêncio — nossa cota gratuita de IA para hoje se esgotou. ' +
+        'Sua campanha está salva; volte mais tarde ou amanhã pra continuar exatamente daqui.)',
+      mode: 'quota_exceeded',
+      options: [],
+      quotaExceeded: true
+    };
   }
 
   async function ask(history, latest) {
@@ -100,6 +118,12 @@ Mantenha continuidade com o histórico.`;
     try {
       return await askGroq(history, latest);
     } catch (eGroq) {
+      if (eGroq.quotaExceeded) {
+        // Cota esgotada é um estado honesto, não "erro genérico" — não cai
+        // silenciosamente pro modo offline (isso enganaria o jogador sobre
+        // o motivo). Ver docs/ASSEMBLEIA-02-LLM-GRATUITO-E-BANCO.md.
+        return quotaExceededResponse();
+      }
       console.debug('master.ask: Groq indisponível, tentando próximo provedor', eGroq.message);
     }
     // 2) window.claude.complete (só existe dentro do artifact host da Anthropic)

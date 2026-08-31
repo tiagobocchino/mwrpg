@@ -262,7 +262,7 @@ function DiceOverlay({ rolling, onDone }) {
 // ============================================================
 // TOPBAR
 // ============================================================
-function Topbar({ scenarioTitle, onReset, canContinue, onContinue }) {
+function Topbar({ scenarioTitle, onReset, canContinue, onContinue, demoInfo, onSignOut }) {
   return (
     <div className="topbar">
       <div className="brand">
@@ -273,12 +273,78 @@ function Topbar({ scenarioTitle, onReset, canContinue, onContinue }) {
         </span>
       </div>
       <div className="topbar-actions">
+        {demoInfo && (
+          <span className="meta demo-badge" title="Versão demo — cada campanha vai até 40 rodadas">
+            demo · rodada {demoInfo.turnCount}/{demoInfo.demoLimit}
+          </span>
+        )}
         <span className="meta">D6 das Três Letras</span>
         {canContinue && <button className="btn" onClick={onContinue}>Continuar</button>}
         <button className="btn btn-ghost" onClick={onReset}>Recomeçar</button>
+        {onSignOut && <button className="btn btn-ghost" onClick={onSignOut}>Sair</button>}
       </div>
     </div>
   );
 }
 
-Object.assign(window, { Chat, MapPanel, Sheet, DiceOverlay, Topbar });
+// ============================================================
+// LOGIN GATE (v0.4 — link mágico)
+// ============================================================
+function LoginGate({ onSignIn }) {
+  const [email, setEmail] = useState('');
+  const [sent, setSent] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function submit(e) {
+    e.preventDefault();
+    if (!email.trim() || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await onSignIn(email.trim());
+      setSent(true);
+    } catch (err) {
+      setError(err.message || 'Não foi possível enviar o link. Tente de novo.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="login-gate">
+      <div className="parchment login-card pop-in">
+        <div className="section-title"><span>MWRPG</span><small>entrar</small></div>
+        <p className="login-copy">
+          Esta é uma <strong>versão demo</strong> do MWRPG — cada campanha vai até
+          <strong> 40 rodadas</strong>, o suficiente pra viver um arco de história
+          inteiro. Entre com seu email pra jogar e guardar seu progresso; sem senha,
+          é só um link enviado pra sua caixa de entrada.
+        </p>
+        {sent ? (
+          <p className="login-sent">
+            Link enviado pra <strong>{email}</strong> — abra seu email e clique nele
+            pra entrar. Pode fechar esta aba.
+          </p>
+        ) : (
+          <form onSubmit={submit} className="login-form">
+            <input
+              type="email"
+              required
+              placeholder="seu@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={busy}
+            />
+            <button className="btn" type="submit" disabled={busy}>
+              {busy ? 'Enviando…' : 'Enviar link mágico'}
+            </button>
+          </form>
+        )}
+        {error && <p className="login-error">{error}</p>}
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { Chat, MapPanel, Sheet, DiceOverlay, Topbar, LoginGate });

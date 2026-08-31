@@ -82,6 +82,18 @@ não "recriar" de fato.
 > mesma coisa — use a "pública/anon" onde eu pedir a pública, e a
 > "secreta/service_role" onde eu pedir a secreta.
 
+8. **Novo passo (login + persistência, v0.4)**: no menu lateral, vá em
+   **SQL Editor** → **New query**. Abra o arquivo `supabase/schema.sql`
+   deste repositório (no GitHub, ou peça pra eu te mandar o conteúdo),
+   cole o SQL inteiro na caixa, e clique em **Run** (ou "RUN", geralmente
+   um botão verde). Isso cria as tabelas `characters` e
+   `campaign_sessions` com a proteção de acesso (RLS) já configurada —
+   sem isso, o login funciona mas o jogo não tem onde salvar a campanha.
+9. **Habilitar o link mágico**: vá em **Authentication** → **Providers**
+   (ou **Sign In / Providers**) e confirme que **Email** está habilitado
+   com a opção de "magic link"/OTP — costuma vir habilitado por padrão
+   num projeto novo, mas confira.
+
 ---
 
 ## O que NUNCA fazer
@@ -104,6 +116,8 @@ não "recriar" de fato.
   service_role key, e a senha do banco (separada, guardada à parte).
 - O painel do projeto mostra status "Active"/"Healthy" (não "Paused" ou
   "Provisioning").
+- Em **Table Editor**, aparecem as tabelas `characters` e
+  `campaign_sessions` (depois de rodar o `schema.sql`).
 
 ## Erros comuns
 

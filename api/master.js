@@ -47,6 +47,17 @@ module.exports = async function handler(req, res) {
     if (!groqRes.ok) {
       const errText = await groqRes.text().catch(() => '');
       console.error('Groq API error', groqRes.status, errText.slice(0, 500));
+      if (groqRes.status === 429) {
+        // Cota do free tier estourada (TPM ou TPD, por organização inteira —
+        // ver docs/ASSEMBLEIA-02-LLM-GRATUITO-E-BANCO.md). Distinguir isso de
+        // um erro genérico permite ao cliente mostrar uma mensagem honesta em
+        // vez de cair silenciosamente no modo offline.
+        res.status(429).json({
+          error: 'groq_quota_exceeded',
+          retryAfter: groqRes.headers.get('retry-after') || null
+        });
+        return;
+      }
       res.status(502).json({ error: 'groq_upstream_error', status: groqRes.status });
       return;
     }

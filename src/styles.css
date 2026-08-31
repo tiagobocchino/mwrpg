@@ -450,6 +450,56 @@ button, input, textarea, select { font: inherit; color: inherit; }
 .btn-ghost { border-color: transparent; color: var(--ink-mute); }
 .btn-ghost:hover { background: color-mix(in oklab, var(--ink) 10%, transparent); color: var(--ink); }
 
+/* === LOGIN GATE (v0.4) === */
+.login-gate {
+  min-height: 100vh;
+  display: grid; place-items: center;
+  padding: 24px;
+  background: var(--paper);
+}
+.login-card {
+  width: 100%; max-width: 420px;
+  padding: 24px;
+}
+.login-copy {
+  font-family: var(--font-body);
+  font-size: 14px; line-height: 1.6;
+  color: var(--ink-2);
+  margin: 14px 0 18px;
+}
+.login-form { display: flex; flex-direction: column; gap: 10px; }
+.login-form input {
+  font-family: var(--font-body);
+  font-size: 14px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in oklab, var(--ink) 25%, transparent);
+  border-radius: var(--radius-md);
+  background: color-mix(in oklab, var(--paper) 92%, white 8%);
+  color: var(--ink);
+}
+.login-form input:focus { outline: 2px solid color-mix(in oklab, var(--gold) 60%, transparent); outline-offset: 1px; }
+.login-form .btn { width: 100%; padding: 10px; }
+.login-sent, .login-error {
+  font-family: var(--font-body);
+  font-size: 13.5px; line-height: 1.5;
+}
+.login-error { color: var(--seal); margin-top: 8px; }
+
+/* === DEMO BADGE / ENCERRAMENTO (v0.4) === */
+.demo-badge {
+  border: 1px solid color-mix(in oklab, var(--gold) 50%, transparent);
+  border-radius: var(--radius-sm, 6px);
+  padding: 3px 8px;
+}
+.demo-end {
+  border: 1px solid color-mix(in oklab, var(--seal) 40%, transparent);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  margin: 8px 0;
+  background: color-mix(in oklab, var(--paper) 90%, var(--gold) 10%);
+}
+.demo-end p { font-family: var(--font-body); font-size: 14px; line-height: 1.6; color: var(--ink-2); margin: 0 0 10px; }
+
 /* === TYPING CURSOR === */
 .typing::after {
   content: '▌';

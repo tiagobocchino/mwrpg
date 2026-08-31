@@ -5,7 +5,9 @@ const TweaksPanel = window.TweaksPanel;
 const TweakSection = window.TweakSection;
 const TweakToggle = window.TweakToggle;
 const TweakRadio = window.TweakRadio;
-const { Chat, MapPanel, Sheet, DiceOverlay, Topbar } = window;
+const { Chat, MapPanel, Sheet, DiceOverlay, Topbar, LoginGate } = window;
+
+const DEMO_LIMIT = 40;
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "theme": "parchment",
@@ -16,37 +18,103 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "masterTone": "sage"
 }/*EDITMODE-END*/;
 
+function freshIntro() {
+  const intro = window.MWRPG_DATA.scenario.intro;
+  return {
+    messages: [{ role: 'master', content: intro }],
+    history: [{ role: 'master', content: intro }],
+    options: window.MWRPG_DATA.scenario.options.map(o => ({
+      label: o.label,
+      attr: o.tone === 'direct' ? 'mnt' : (o.tone === 'social' || o.tone === 'bardic') ? 'alm' : 'none',
+      needsRoll: o.tone !== 'cautious'
+    })),
+    mode: 'dialog',
+    partyAt: 'tavern'
+  };
+}
+
 function App() {
   const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
-  const [messages, setMessages] = useS(() => [{ role: 'master', content: window.MWRPG_DATA.scenario.intro }]);
-  const [options, setOptions] = useS(() => window.MWRPG_DATA.scenario.options.map(o => ({
-    label: o.label,
-    attr: o.tone === 'direct' ? 'mnt' : (o.tone === 'social' || o.tone === 'bardic') ? 'alm' : 'none',
-    needsRoll: o.tone !== 'cautious'
-  })));
-  const [mode, setMode] = useS('dialog');
+  const init = useR(freshIntro()).current;
+  const [messages, setMessages] = useS(init.messages);
+  const [options, setOptions] = useS(init.options);
+  const [mode, setMode] = useS(init.mode);
   const [thinking, setThinking] = useS(false);
   const [rolling, setRolling] = useS(null);
   const [player, setPlayer] = useS(window.MWRPG_DATA.player);
   const [npcs] = useS(window.MWRPG_DATA.npcs);
-  const [partyAt, setPartyAt] = useS('tavern');
+  const [partyAt, setPartyAt] = useS(init.partyAt);
   const [canContinue, setCanContinue] = useS(() => window.MWRPG_STORAGE.hasSave());
-  const history = useR([]);
+  const [turnCount, setTurnCount] = useS(0);
+  const [demoLocked, setDemoLocked] = useS(false);
+  const history = useR(init.history);
+
+  // v0.4 — login (link mágico). authRequired só vira true se /api/config
+  // responder com sucesso (Supabase configurado); senão o jogo segue sem
+  // login, como sempre funcionou.
+  const [authChecking, setAuthChecking] = useS(true);
+  const [authRequired, setAuthRequired] = useS(false);
+  const [session, setSession] = useS(null);
+  const cloudSessionId = useR(null);
+
+  useE(() => {
+    let unsub = () => {};
+    (async () => {
+      const ok = await window.MWRPG_AUTH.init();
+      setAuthRequired(ok);
+      if (ok) {
+        const s = await window.MWRPG_AUTH.getSession();
+        setSession(s);
+        unsub = window.MWRPG_AUTH.onChange((s2) => setSession(s2));
+      }
+      setAuthChecking(false);
+    })();
+    return () => unsub();
+  }, []);
+
+  // hidrata/cria a campanha em nuvem assim que a sessão aparece
+  const cloudReady = useR(false);
+  useE(() => {
+    if (!session || cloudReady.current) return;
+    cloudReady.current = true;
+    (async () => {
+      try {
+        const existing = await window.MWRPG_CLOUD.loadActiveSession(session.user.id);
+        if (existing) {
+          cloudSessionId.current = existing.id;
+          setMessages(existing.messages && existing.messages.length ? existing.messages : init.messages);
+          history.current = existing.history && existing.history.length ? existing.history : init.history;
+          setOptions(existing.options || []);
+          setMode(existing.mode || 'dialog');
+          setPartyAt(existing.party_at || 'tavern');
+          setTurnCount(existing.turn_count || 0);
+          setDemoLocked(existing.status === 'demo_limit_reached');
+        } else {
+          const created = await window.MWRPG_CLOUD.createSession(session.user.id, init);
+          cloudSessionId.current = created.id;
+        }
+      } catch (e) {
+        console.error('cloudSync: falha ao carregar/criar campanha', e);
+      }
+    })();
+  }, [session]);
 
   // tema via data-attr
   useE(() => { document.documentElement.setAttribute('data-theme', tweaks.theme === 'ember' ? 'ember' : ''); }, [tweaks.theme]);
 
-  // primeiro turno: histórico inicia com a intro
-  useE(() => { history.current = [{ role: 'master', content: window.MWRPG_DATA.scenario.intro }]; }, []);
-
-  // v0.2 — autosave: grava progresso a cada mudança de estado relevante.
-  // Pula o primeiro render pra não sobrescrever um save existente antes do
-  // jogador decidir "Continuar" ou "Recomeçar".
+  // autosave: nuvem se logado, localStorage caso contrário (v0.2, inalterado)
   const skipFirstSave = useR(true);
   useE(() => {
     if (skipFirstSave.current) { skipFirstSave.current = false; return; }
-    window.MWRPG_STORAGE.save({ messages, history: history.current, options, mode, player, partyAt });
-  }, [messages, options, mode, player, partyAt]);
+    if (cloudSessionId.current) {
+      window.MWRPG_CLOUD.saveSession(cloudSessionId.current, {
+        messages, history: history.current, options, mode, party_at: partyAt,
+        turn_count: turnCount, status: demoLocked ? 'demo_limit_reached' : 'active'
+      }).catch(e => console.error('cloudSync: falha ao salvar', e));
+    } else if (!authRequired) {
+      window.MWRPG_STORAGE.save({ messages, history: history.current, options, mode, player, partyAt });
+    }
+  }, [messages, options, mode, player, partyAt, turnCount, demoLocked]);
 
   const handleContinue = useCB(() => {
     const saved = window.MWRPG_STORAGE.load();
@@ -60,13 +128,30 @@ function App() {
     setCanContinue(false);
   }, []);
 
-  async function boot() {
-    setThinking(true);
-    setThinking(false);
+  const handleSignIn = useCB((email) => window.MWRPG_AUTH.signInWithEmail(email), []);
+  const handleSignOut = useCB(async () => {
+    await window.MWRPG_AUTH.signOut();
+    setSession(null);
+    cloudReady.current = false;
+    cloudSessionId.current = null;
+  }, []);
+
+  function demoEndMessage() {
+    return {
+      role: 'system',
+      content:
+        'Por enquanto, a história para aqui — não porque a aventura acabou, mas ' +
+        'porque esta é uma demonstração aberta pra quem quiser experimentar o ' +
+        'MWRPG antes da versão completa. Cada campanha nesta fase vai até ' +
+        DEMO_LIMIT + ' rodadas, pra dar espaço pra explorar sem pesar na nossa ' +
+        'capacidade de teste (o mestre roda numa camada gratuita de IA, ' +
+        'compartilhada entre todo mundo testando ao mesmo tempo). Gostou? ' +
+        'Comece uma nova campanha quando quiser.'
+    };
   }
 
   const handleChoose = useCB(async (option, idx) => {
-    if (thinking) return;
+    if (thinking || demoLocked) return;
     setCanContinue(false);
     // 1. registrar fala do jogador
     const playerMsg = { role: 'player', content: option.label };
@@ -105,10 +190,10 @@ function App() {
 
     const resp = await window.MWRPG_MASTER.ask(history.current, promptToMaster);
     applyMasterResponse(resp);
-  }, [thinking, player, mode, tweaks.showDice]);
+  }, [thinking, demoLocked, player, mode, tweaks.showDice]);
 
   const handleFree = useCB(async (text) => {
-    if (thinking) return;
+    if (thinking || demoLocked) return;
     setCanContinue(false);
     setMessages(m => [...m, { role: 'player', content: text }]);
     history.current.push({ role: 'player', content: text });
@@ -116,16 +201,22 @@ function App() {
     setThinking(true);
     const resp = await window.MWRPG_MASTER.ask(history.current, `O jogador descreve livremente: "${text}". Reaja e ofereça novas opções.`);
     applyMasterResponse(resp);
-  }, [thinking]);
+  }, [thinking, demoLocked]);
 
   function applyMasterResponse(resp) {
     setMessages(m => [...m, { role: 'master', content: resp.narration }]);
     history.current.push({ role: 'master', content: resp.narration });
 
+    // cota da IA esgotada: estado honesto, não conta como rodada, sem opções novas
+    if (resp.quotaExceeded) {
+      setOptions([]);
+      setThinking(false);
+      return;
+    }
+
     // mode
     if (resp.mode === 'combat') {
       setMode('combat');
-      // injeta as 6 ações padrão se a IA não enviou
       const combat = window.MWRPG_ENGINE.COMBAT_ACTIONS.map((a, i) => ({
         label: resp.options[i]?.label || a.label,
         glyph: a.glyph,
@@ -138,12 +229,10 @@ function App() {
       setOptions(resp.options.slice(0, 6));
     }
 
-    // movimento no mapa
     if (resp.mapHint && resp.mapHint.moveTo) {
       setPartyAt(resp.mapHint.moveTo);
     }
 
-    // mudanças de estado
     if (resp.stateChanges) {
       const sc = resp.stateChanges;
       setPlayer(p => {
@@ -155,24 +244,47 @@ function App() {
       });
     }
 
+    // v0.4 — contagem de rodada da demo (só rodadas com narração real contam)
+    setTurnCount(tc => {
+      const next = tc + 1;
+      if (next >= DEMO_LIMIT) {
+        setDemoLocked(true);
+        setOptions([]);
+        setMessages(m => [...m, demoEndMessage()]);
+      }
+      return next;
+    });
+
     setThinking(false);
   }
 
   function handleReset() {
     if (!confirm('Recomeçar a campanha? O progresso atual será perdido.')) return;
-    const intro = window.MWRPG_DATA.scenario.intro;
-    setMessages([{ role: 'master', content: intro }]);
-    setOptions(window.MWRPG_DATA.scenario.options.map(o => ({
-      label: o.label,
-      attr: o.tone === 'direct' ? 'mnt' : (o.tone === 'social' || o.tone === 'bardic') ? 'alm' : 'none',
-      needsRoll: o.tone !== 'cautious'
-    })));
-    setMode('dialog');
-    history.current = [{ role: 'master', content: intro }];
+    const fresh = freshIntro();
+    setMessages(fresh.messages);
+    setOptions(fresh.options);
+    setMode(fresh.mode);
+    history.current = fresh.history;
     setPlayer(window.MWRPG_DATA.player);
-    setPartyAt('tavern');
+    setPartyAt(fresh.partyAt);
     setCanContinue(false);
+    setTurnCount(0);
+    setDemoLocked(false);
     window.MWRPG_STORAGE.clear();
+
+    if (session && cloudSessionId.current) {
+      const oldId = cloudSessionId.current;
+      window.MWRPG_CLOUD.saveSession(oldId, { status: 'finished' }).catch(() => {});
+      cloudSessionId.current = null;
+      window.MWRPG_CLOUD.createSession(session.user.id, fresh)
+        .then(created => { cloudSessionId.current = created.id; })
+        .catch(e => console.error('cloudSync: falha ao criar nova campanha', e));
+    }
+  }
+
+  if (authChecking) return null;
+  if (authRequired && !session) {
+    return <LoginGate onSignIn={handleSignIn} />;
   }
 
   return (
@@ -182,6 +294,8 @@ function App() {
         onReset={handleReset}
         canContinue={canContinue}
         onContinue={handleContinue}
+        demoInfo={{ turnCount: Math.min(turnCount, DEMO_LIMIT), demoLimit: DEMO_LIMIT }}
+        onSignOut={session ? handleSignOut : null}
       />
 
       <div className="col col-left">
@@ -192,12 +306,12 @@ function App() {
       <div className="col col-center">
         <Chat
           messages={messages}
-          options={options}
+          options={demoLocked ? [] : options}
           mode={mode}
           thinking={thinking}
           onChoose={handleChoose}
           onFreeText={handleFree}
-          allowFree={tweaks.allowFreeText}
+          allowFree={tweaks.allowFreeText && !demoLocked}
         />
         <MapPanel map={{ ...window.MWRPG_DATA.map }} partyAt={partyAt} />
       </div>

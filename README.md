@@ -2,7 +2,7 @@
 
 **Produção:** [mwrpg-one.vercel.app](https://mwrpg-one.vercel.app/)
 
-RPG solo narrativo conduzido por Mestre IA. Chat central, mapa de cenário, ficha do jogador + 3 NPCs companheiros. Sistema próprio **D6 das Três Letras** (CRP/MNT/ALM, 2d6 + atributo). Progresso salvo automaticamente no navegador (localStorage) — botão "Continuar" retoma a última campanha.
+RPG solo narrativo conduzido por Mestre IA. Chat central, mapa de cenário, ficha do jogador + 3 NPCs companheiros. Sistema próprio **D6 das Três Letras** (CRP/MNT/ALM, 2d6 + atributo). Login por link mágico + progresso salvo em nuvem (Supabase) quando configurado; localStorage como fallback. **Versão demo: cada campanha vai até 40 rodadas.**
 
 > Cenário inicial: lenda bretã de Ys, fantasia low-magic. Fontes em domínio público (SRD 5.1 CC-BY 4.0, Project Gutenberg, Sacred Texts).
 
@@ -10,6 +10,7 @@ RPG solo narrativo conduzido por Mestre IA. Chat central, mapa de cenário, fich
 
 - **Front-end:** HTML estático + React 18 + Babel (transformer no navegador) — zero build step.
 - **Mestre IA:** Groq (`openai/gpt-oss-120b`, camada gratuita) via `api/master.js` (Vercel Function) → `window.claude.complete` (artifact host) → modo offline. Nessa ordem de fallback.
+- **Login + persistência:** Supabase Auth (link mágico) + Postgres (`campaign_sessions`, `characters`), via `src/auth.js` + `src/cloudSync.js` + `api/config.js`. Sem Supabase configurado, o jogo funciona sem login (localStorage).
 - **Acervo:** referências curadas de domínio público (fábulas, mitologia, folclore) em `src/acervo.js`, com proveniência em `docs/ACERVO-PROVENIENCIA.md`.
 - **Tipografia:** Cinzel + EB Garamond + IM Fell English + IBM Plex Mono (Google Fonts).
 
@@ -19,8 +20,11 @@ RPG solo narrativo conduzido por Mestre IA. Chat central, mapa de cenário, fich
 .
 ├── index.html              # entrada
 ├── api/
-│   └── master.js           # Vercel Function — proxy pro Groq (GROQ_API_KEY no servidor)
-├── docs/                   # método, assembleias, proveniência do acervo
+│   ├── master.js           # Vercel Function — proxy pro Groq (GROQ_API_KEY no servidor)
+│   └── config.js           # Vercel Function — config pública do Supabase pro cliente
+├── supabase/
+│   └── schema.sql          # tabelas characters + campaign_sessions, RLS
+├── docs/                   # método, assembleias, proveniência do acervo, proposta do mapa
 ├── .claude/agents/         # roster de agentes deste projeto
 ├── src/
 │   ├── styles.css          # design system "Manuscrito Vivo"
@@ -28,9 +32,11 @@ RPG solo narrativo conduzido por Mestre IA. Chat central, mapa de cenário, fich
 │   ├── acervo.js           # referências de domínio público (pickAcervoLore)
 │   ├── engine.js           # rolagem 2d6, bandas, ações de combate
 │   ├── master.js           # prompt do mestre + parser JSON + fallback em cadeia
-│   ├── storage.js          # persistência local (localStorage) — save/continuar
-│   ├── components.jsx      # Chat, Map, Sheet, Dice, Topbar
-│   ├── app.jsx             # estado, fluxo de turno
+│   ├── storage.js          # persistência local (localStorage) — fallback sem login
+│   ├── auth.js             # login por link mágico (Supabase Auth)
+│   ├── cloudSync.js        # CRUD de campaign_sessions no Supabase
+│   ├── components.jsx      # Chat, Map, Sheet, Dice, Topbar, LoginGate
+│   ├── app.jsx             # estado, fluxo de turno, login gate, limite de demo
 │   └── tweaks-panel.jsx    # painel de tweaks
 ├── Relatorio_Pesquisa_RPG.md   # pesquisa fundadora
 ├── vercel.json
