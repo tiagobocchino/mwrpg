@@ -18,7 +18,10 @@ const AUTH_ERROR_MESSAGES = {
   otp_disabled: 'Login por link mágico está temporariamente desativado. Tente novamente mais tarde.',
   otp_expired: 'Esse link expirou ou já foi usado. Peça um novo link.',
   validation_failed: 'Não consegui processar esse email. Confira o formato e tente de novo.',
-  unexpected_failure: 'Algo deu errado do nosso lado. Tente novamente em instantes.'
+  unexpected_failure: 'Algo deu errado do nosso lado. Tente novamente em instantes.',
+  invalid_credentials: 'Email ou senha incorretos.',
+  weak_password: 'Essa senha é fraca demais — use pelo menos 6 caracteres.',
+  same_password: 'A nova senha precisa ser diferente da atual.'
 };
 
 function translateAuthError(error) {
@@ -82,6 +85,29 @@ window.MWRPG_AUTH = (function () {
     }
   }
 
+  async function signInWithPassword(email, password) {
+    if (!(await init())) throw new Error('login indisponível — Supabase não configurado');
+    const { error } = await client.auth.signInWithPassword({ email, password });
+    if (error) {
+      const friendly = new Error(translateAuthError(error));
+      friendly.code = error.code;
+      throw friendly;
+    }
+  }
+
+  // Chamado com uma sessão já ativa (ex.: logo depois de confirmar o link
+  // mágico) pra vincular uma senha à conta — assim o jogador não precisa
+  // de link mágico novo toda vez que voltar.
+  async function setPassword(password) {
+    if (!client) throw new Error('login indisponível — Supabase não configurado');
+    const { error } = await client.auth.updateUser({ password });
+    if (error) {
+      const friendly = new Error(translateAuthError(error));
+      friendly.code = error.code;
+      throw friendly;
+    }
+  }
+
   async function signOut() {
     if (!client) return;
     await client.auth.signOut();
@@ -97,5 +123,5 @@ window.MWRPG_AUTH = (function () {
     return client;
   }
 
-  return { init, getSession, signInWithEmail, signOut, onChange, getClient, consumeUrlError };
+  return { init, getSession, signInWithEmail, signInWithPassword, setPassword, signOut, onChange, getClient, consumeUrlError };
 })();

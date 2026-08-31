@@ -290,13 +290,21 @@ function Topbar({ scenarioTitle, onReset, canContinue, onContinue, demoInfo, onS
 // ============================================================
 // LOGIN GATE (v0.4 — link mágico)
 // ============================================================
-function LoginGate({ onSignIn, initialError }) {
+function LoginGate({ onSignIn, onSignInPassword, initialError }) {
+  const [mode, setMode] = useState('magic'); // 'magic' | 'password'
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(initialError || null);
 
-  async function submit(e) {
+  function switchMode(next) {
+    setMode(next);
+    setError(null);
+    setPassword('');
+  }
+
+  async function submitMagic(e) {
     e.preventDefault();
     if (!email.trim() || busy) return;
     setBusy(true);
@@ -311,6 +319,20 @@ function LoginGate({ onSignIn, initialError }) {
     }
   }
 
+  async function submitPassword(e) {
+    e.preventDefault();
+    if (!email.trim() || !password || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await onSignInPassword(email.trim(), password);
+    } catch (err) {
+      setError(err.message || 'Não foi possível entrar. Tente de novo.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="login-gate">
       <div className="parchment login-card pop-in">
@@ -318,28 +340,67 @@ function LoginGate({ onSignIn, initialError }) {
         <p className="login-copy">
           Esta é uma <strong>versão demo</strong> do MWRPG — cada campanha vai até
           <strong> 40 rodadas</strong>, o suficiente pra viver um arco de história
-          inteiro. Entre com seu email pra jogar e guardar seu progresso; sem senha,
-          é só um link enviado pra sua caixa de entrada.
+          inteiro.
         </p>
+
         {sent ? (
           <p className="login-sent">
             Link enviado pra <strong>{email}</strong> — abra seu email e clique nele
             pra entrar. Pode fechar esta aba.
           </p>
-        ) : (
-          <form onSubmit={submit} className="login-form">
-            <input
-              type="email"
-              required
-              placeholder="seu@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={busy}
-            />
-            <button className="btn" type="submit" disabled={busy}>
-              {busy ? 'Enviando…' : 'Enviar link mágico'}
+        ) : mode === 'magic' ? (
+          <>
+            <p className="login-copy" style={{ marginTop: -8 }}>
+              Primeira vez? Entre com seu email — sem senha, é só um link
+              enviado pra sua caixa de entrada.
+            </p>
+            <form onSubmit={submitMagic} className="login-form">
+              <input
+                type="email"
+                required
+                placeholder="seu@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={busy}
+              />
+              <button className="btn" type="submit" disabled={busy}>
+                {busy ? 'Enviando…' : 'Enviar link mágico'}
+              </button>
+            </form>
+            <button className="btn btn-ghost login-toggle" onClick={() => switchMode('password')} disabled={busy}>
+              Já tenho senha — entrar direto
             </button>
-          </form>
+          </>
+        ) : (
+          <>
+            <p className="login-copy" style={{ marginTop: -8 }}>
+              Entre com o email e a senha que você criou.
+            </p>
+            <form onSubmit={submitPassword} className="login-form">
+              <input
+                type="email"
+                required
+                placeholder="seu@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={busy}
+              />
+              <input
+                type="password"
+                required
+                placeholder="Senha"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={busy}
+              />
+              <button className="btn" type="submit" disabled={busy}>
+                {busy ? 'Entrando…' : 'Entrar'}
+              </button>
+            </form>
+            <button className="btn btn-ghost login-toggle" onClick={() => switchMode('magic')} disabled={busy}>
+              Primeira vez ou esqueceu a senha? Link mágico
+            </button>
+          </>
         )}
         {error && <p className="login-error">{error}</p>}
       </div>
@@ -347,4 +408,69 @@ function LoginGate({ onSignIn, initialError }) {
   );
 }
 
-Object.assign(window, { Chat, MapPanel, Sheet, DiceOverlay, Topbar, LoginGate });
+// ============================================================
+// CRIAR SENHA (v0.4 — logo depois de confirmar o link mágico, pra
+// não precisar de link novo toda vez que voltar)
+// ============================================================
+function SetPasswordGate({ onSetPassword, onSkip }) {
+  const [password, setPassword] = useState('');
+  const [confirmPw, setConfirmPw] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function submit(e) {
+    e.preventDefault();
+    if (busy) return;
+    if (password.length < 6) { setError('A senha precisa ter pelo menos 6 caracteres.'); return; }
+    if (password !== confirmPw) { setError('As senhas não coincidem.'); return; }
+    setBusy(true);
+    setError(null);
+    try {
+      await onSetPassword(password);
+    } catch (err) {
+      setError(err.message || 'Não foi possível salvar a senha agora.');
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="login-gate">
+      <div className="parchment login-card pop-in">
+        <div className="section-title"><span>※ Login confirmado</span></div>
+        <p className="login-copy">
+          Crie uma senha pra sua conta — assim você entra direto da próxima
+          vez, sem precisar de um novo link por email.
+        </p>
+        <form onSubmit={submit} className="login-form">
+          <input
+            type="password"
+            required
+            minLength={6}
+            placeholder="Nova senha (mín. 6 caracteres)"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            disabled={busy}
+          />
+          <input
+            type="password"
+            required
+            minLength={6}
+            placeholder="Confirme a senha"
+            value={confirmPw}
+            onChange={(e) => setConfirmPw(e.target.value)}
+            disabled={busy}
+          />
+          <button className="btn" type="submit" disabled={busy}>
+            {busy ? 'Salvando…' : 'Salvar senha e entrar'}
+          </button>
+        </form>
+        {error && <p className="login-error">{error}</p>}
+        <button className="btn btn-ghost login-toggle" onClick={onSkip} disabled={busy}>
+          Definir depois
+        </button>
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { Chat, MapPanel, Sheet, DiceOverlay, Topbar, LoginGate, SetPasswordGate });

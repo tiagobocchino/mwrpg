@@ -5,7 +5,7 @@ const TweaksPanel = window.TweaksPanel;
 const TweakSection = window.TweakSection;
 const TweakToggle = window.TweakToggle;
 const TweakRadio = window.TweakRadio;
-const { Chat, MapPanel, Sheet, DiceOverlay, Topbar, LoginGate } = window;
+const { Chat, MapPanel, Sheet, DiceOverlay, Topbar, LoginGate, SetPasswordGate } = window;
 
 const DEMO_LIMIT = 40;
 
@@ -56,7 +56,9 @@ function App() {
   const [authRequired, setAuthRequired] = useS(false);
   const [session, setSession] = useS(null);
   const [authInitialError, setAuthInitialError] = useS(null);
+  const [justConfirmed, setJustConfirmed] = useS(false);
   const cloudSessionId = useR(null);
+  const hadInitialSession = useR(false);
 
   useE(() => {
     let unsub = () => {};
@@ -67,7 +69,18 @@ function App() {
         setAuthInitialError(window.MWRPG_AUTH.consumeUrlError());
         const s = await window.MWRPG_AUTH.getSession();
         setSession(s);
-        unsub = window.MWRPG_AUTH.onChange((s2) => setSession(s2));
+        hadInitialSession.current = !!s;
+        unsub = window.MWRPG_AUTH.onChange((s2) => {
+          // sessão apareceu depois do mount (não já na primeira checagem)
+          // = acabou de voltar do clique no link mágico. Oferece criar
+          // senha antes de entrar no jogo (fica assim até o jogador
+          // salvar uma senha ou pular).
+          if (s2 && !hadInitialSession.current) {
+            setJustConfirmed(true);
+          }
+          hadInitialSession.current = !!s2;
+          setSession(s2);
+        });
       }
       setAuthChecking(false);
     })();
@@ -131,6 +144,12 @@ function App() {
   }, []);
 
   const handleSignIn = useCB((email) => window.MWRPG_AUTH.signInWithEmail(email), []);
+  const handleSignInPassword = useCB((email, password) => window.MWRPG_AUTH.signInWithPassword(email, password), []);
+  const handleSetPassword = useCB(async (password) => {
+    await window.MWRPG_AUTH.setPassword(password);
+    setJustConfirmed(false);
+  }, []);
+  const handleSkipPassword = useCB(() => setJustConfirmed(false), []);
   const handleSignOut = useCB(async () => {
     await window.MWRPG_AUTH.signOut();
     setSession(null);
@@ -285,8 +304,9 @@ function App() {
   }
 
   if (authChecking) return null;
+  if (justConfirmed) return <SetPasswordGate onSetPassword={handleSetPassword} onSkip={handleSkipPassword} />;
   if (authRequired && !session) {
-    return <LoginGate onSignIn={handleSignIn} initialError={authInitialError} />;
+    return <LoginGate onSignIn={handleSignIn} onSignInPassword={handleSignInPassword} initialError={authInitialError} />;
   }
 
   return (
