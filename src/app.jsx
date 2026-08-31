@@ -55,6 +55,7 @@ function App() {
   const [authChecking, setAuthChecking] = useS(true);
   const [authRequired, setAuthRequired] = useS(false);
   const [session, setSession] = useS(null);
+  const [authInitialError, setAuthInitialError] = useS(null);
   const cloudSessionId = useR(null);
 
   useE(() => {
@@ -63,6 +64,7 @@ function App() {
       const ok = await window.MWRPG_AUTH.init();
       setAuthRequired(ok);
       if (ok) {
+        setAuthInitialError(window.MWRPG_AUTH.consumeUrlError());
         const s = await window.MWRPG_AUTH.getSession();
         setSession(s);
         unsub = window.MWRPG_AUTH.onChange((s2) => setSession(s2));
@@ -284,7 +286,7 @@ function App() {
 
   if (authChecking) return null;
   if (authRequired && !session) {
-    return <LoginGate onSignIn={handleSignIn} />;
+    return <LoginGate onSignIn={handleSignIn} initialError={authInitialError} />;
   }
 
   return (

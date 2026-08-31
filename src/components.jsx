@@ -290,11 +290,11 @@ function Topbar({ scenarioTitle, onReset, canContinue, onContinue, demoInfo, onS
 // ============================================================
 // LOGIN GATE (v0.4 — link mágico)
 // ============================================================
-function LoginGate({ onSignIn }) {
+function LoginGate({ onSignIn, initialError }) {
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState(initialError || null);
 
   async function submit(e) {
     e.preventDefault();
