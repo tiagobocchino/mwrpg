@@ -502,11 +502,20 @@ button, input, textarea, select { font: inherit; color: inherit; }
 
 /* responsive — collapse side cols */
 @media (max-width: 1100px) {
-  .app { grid-template-columns: 280px 1fr; }
+  .app { grid-template-columns: 280px minmax(0, 1fr); }
   .col-right { display: none; }
 }
 @media (max-width: 820px) {
-  .app { grid-template-columns: 1fr; grid-template-rows: 56px auto auto; }
+  .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto; height: auto; min-height: 100vh; }
   .col-left, .col-right { display: none; }
   .map { height: 220px; }
+}
+@media (max-width: 480px) {
+  /* topbar não empurra a coluna além da viewport — a causa raiz era um
+     item de grid/flex sem min-width:0 recusando encolher (achado real
+     de teste em 375px, ver docs/METODO-PLANEJAMENTO.md) */
+  .topbar { flex-wrap: wrap; row-gap: 8px; height: auto; padding: 10px 14px; min-width: 0; }
+  .brand { flex-wrap: wrap; min-width: 0; }
+  .brand > span:last-child { display: none; }
+  .topbar-actions .meta { display: none; }
 }

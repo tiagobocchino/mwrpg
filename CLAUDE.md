@@ -147,11 +147,16 @@ mwrpg/
 ├── .gitignore
 ├── CLAUDE.md               # ESTE arquivo
 ├── Relatorio_Pesquisa_RPG.md   # base de conteúdo (bestiário, magias, raças, 25 enredos)
+├── docs/                   # método, assembleias, proveniência do acervo
+├── .claude/agents/         # roster de agentes deste projeto
+├── api/
+│   └── master.js           # Vercel Function — proxy pro Mestre IA via Groq (GROQ_API_KEY no servidor)
 └── src/
     ├── styles.css          # design system Manuscrito Vivo
     ├── data.js             # window.MWRPG_DATA — cenário, jogador, NPCs, mapa
+    ├── acervo.js            # window.MWRPG_ACERVO — referências de domínio público, pickAcervoLore()
     ├── engine.js           # window.MWRPG_ENGINE — d6, roll2d6, COMBAT_ACTIONS
-    ├── master.js           # window.MWRPG_MASTER — ask(), parseResponse(), SYSTEM_PROMPT
+    ├── master.js           # window.MWRPG_MASTER — ask() [Groq → claude.complete → offline], SYSTEM_PROMPT
     ├── storage.js           # window.MWRPG_STORAGE — save(), load(), clear(), hasSave() (localStorage, v0.2)
     ├── components.jsx      # Chat, MapPanel, Sheet, DiceOverlay, Topbar, Option, Message
     ├── app.jsx             # App — estado, fluxo de turno, handlers
@@ -162,12 +167,16 @@ mwrpg/
 Em `index.html`, scripts carregam nesta ordem (dependências antes de quem usa):
 1. React + ReactDOM + Babel standalone (CDN, integrity hashes pinados)
 2. `src/data.js` (vanilla)
-3. `src/engine.js` (vanilla)
-4. `src/master.js` (vanilla)
-5. `src/storage.js` (vanilla)
-6. `src/tweaks-panel.jsx` (Babel)
-7. `src/components.jsx` (Babel)
-8. `src/app.jsx` (Babel)
+3. `src/acervo.js` (vanilla — precisa vir antes de `master.js`, que usa `pickAcervoLore`)
+4. `src/engine.js` (vanilla)
+5. `src/master.js` (vanilla)
+6. `src/storage.js` (vanilla)
+7. `src/tweaks-panel.jsx` (Babel)
+8. `src/components.jsx` (Babel)
+9. `src/app.jsx` (Babel)
+
+`api/master.js` não entra nessa lista — não é carregado pelo navegador, é
+uma Vercel Function separada, servida em `/api/master`.
 
 ### 6.2 Convenção: scripts Babel não compartilham scope
 Cada `<script type="text/babel">` vira IIFE separada após Babel. Para compartilhar, sempre exporte via `Object.assign(window, { ... })` no fim do arquivo, e importe via `const X = window.X` no início do arquivo consumidor.
@@ -233,10 +242,17 @@ Atualmente expõe: `theme`, `allowFreeText`, `showDice`. Ampliar conforme novos 
 - Botão "Continuar" no topbar quando há save; some após "Recomeçar" ou após a primeira ação de uma sessão retomada.
 - "Recomeçar" limpa o save (`MWRPG_STORAGE.clear()`).
 
-### v0.3 — Mestre IA fora do artifact host
-- Edge function em `/api/master.ts` (Vercel) → chama Claude/Anthropic ou OpenAI.
-- Variável `ANTHROPIC_API_KEY` no Vercel env.
-- Manter contrato JSON. Adicionar fallback streaming se quiser efeito typewriter real.
+### v0.3 — Mestre IA fora do artifact host ⏳ código pronto, aguardando credencial
+- Decisão da Assembleia 02 (`docs/ASSEMBLEIA-02-LLM-GRATUITO-E-BANCO.md`): **Groq**, não Claude/OpenAI — camada gratuita real, não treina com os dados enviados (política verificada com fonte).
+- `api/master.js` (Vercel Function) → chama `openai/gpt-oss-120b` na Groq (substituto oficial do `llama-3.3-70b-versatile`, deprecado 16/ago/2026). Variável `GROQ_API_KEY` no Vercel env — **nunca commitada**.
+- `src/master.js` → `ask()` tenta Groq primeiro, cai pra `window.claude.complete` (artifact host) e por fim modo offline. Histórico podado (`trimHistory`) por causa do limite real do free tier da Groq: 8.000 tokens/minuto **por organização inteira**, não por usuário.
+- Contrato JSON mantido intacto.
+- **Não testado ponta a ponta ainda** — falta o Tiago criar a conta/chave da Groq. Testado o que dá: fallback gracioso quando a Groq não responde (confirmado local), montagem correta da requisição (formato Groq/OpenAI-compatible confirmado via documentação oficial).
+
+### Acervo de domínio público (junto com v0.3, prioridade do Tiago)
+- `src/acervo.js` — referências curadas (fábulas de Esopo, mitologia clássica, folclore brasileiro) com proveniência registrada em `docs/ACERVO-PROVENIENCIA.md`. Retrieval simples por tag (`pickAcervoLore`), sem embeddings ainda.
+- O mestre recebe até 2 entradas relevantes como "material de referência" no prompt — inspiração, não obrigação de uso.
+- Regra: nada entra no acervo sem proveniência registrada e licença verificada (ver checklist do Code QA Engineer).
 
 ### v0.4 — RAG com Supabase pgvector
 - 4 coleções: `regras`, `bestiario`, `lore_mundo`, `historico_campanha`.

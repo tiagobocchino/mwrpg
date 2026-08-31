@@ -47,25 +47,73 @@ Mantenha continuidade com o histórico.`;
     return msgs;
   }
 
+  // Limite real do free tier da Groq: 8.000 tokens/minuto por organização
+  // (não por usuário) — ver docs/ASSEMBLEIA-02-LLM-GRATUITO-E-BANCO.md.
+  // Manda só a intro + as últimas trocas em vez do histórico inteiro.
+  function trimHistory(history) {
+    const MAX_RECENT = 10; // ~5 trocas jogador/mestre
+    if (history.length <= MAX_RECENT) return history;
+    const intro = history[0];
+    const recent = history.slice(-MAX_RECENT);
+    return recent.indexOf(intro) !== -1 ? recent : [intro].concat(recent);
+  }
+
+  function guessAcervoTags(latest) {
+    if (!window.MWRPG_ACERVO) return [];
+    const text = String(latest || '').toLowerCase();
+    const allTags = {};
+    window.MWRPG_ACERVO.entries.forEach(e => e.tags.forEach(t => { allTags[t] = 1; }));
+    return Object.keys(allTags).filter(t => text.indexOf(t) !== -1);
+  }
+
+  function buildGroqMessages(history, latest) {
+    let sys = SYSTEM_PROMPT;
+    const tags = guessAcervoTags(latest);
+    const lore = window.pickAcervoLore ? window.pickAcervoLore(tags, 2) : [];
+    if (lore.length) {
+      sys += '\n\nMATERIAL DE REFERÊNCIA DISPONÍVEL (domínio público, use como' +
+        ' inspiração se fizer sentido — não é obrigatório encaixar):\n' +
+        lore.map(e => `- ${e.titulo}: ${e.resumoJogavel}`).join('\n');
+    }
+    const msgs = [{ role: 'system', content: sys }];
+    for (const h of trimHistory(history)) {
+      msgs.push({ role: h.role === 'master' ? 'assistant' : 'user', content: h.content });
+    }
+    if (latest) msgs.push({ role: 'user', content: latest });
+    return msgs;
+  }
+
+  async function askGroq(history, latest) {
+    const res = await fetch('/api/master', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: buildGroqMessages(history, latest) })
+    });
+    if (!res.ok) throw new Error('groq_http_' + res.status);
+    const data = await res.json();
+    if (!data.text) throw new Error('groq_empty_response');
+    return parseResponse(data.text);
+  }
+
   async function ask(history, latest) {
-    if (!window.claude || !window.claude.complete) {
-      return mockResponse(history, latest);
-    }
+    // 1) Groq via /api/master (produção real — precisa de GROQ_API_KEY no servidor)
     try {
-      const messages = buildMessages(history, latest);
-      const text = await window.claude.complete({ messages });
-      return parseResponse(text);
-    } catch (e) {
-      console.error('master.ask failed', e);
-      return {
-        narration: '(O mestre faz uma pausa, como se ouvisse algo distante. A cena continua.)',
-        mode: 'dialog',
-        options: [
-          { label: 'Esperar.', attr: 'none', needsRoll: false },
-          { label: 'Insistir.', attr: 'mnt', needsRoll: true }
-        ]
-      };
+      return await askGroq(history, latest);
+    } catch (eGroq) {
+      console.debug('master.ask: Groq indisponível, tentando próximo provedor', eGroq.message);
     }
+    // 2) window.claude.complete (só existe dentro do artifact host da Anthropic)
+    if (window.claude && window.claude.complete) {
+      try {
+        const messages = buildMessages(history, latest);
+        const text = await window.claude.complete({ messages });
+        return parseResponse(text);
+      } catch (eClaude) {
+        console.error('master.ask (claude.complete) failed', eClaude);
+      }
+    }
+    // 3) modo offline
+    return mockResponse(history, latest);
   }
 
   function parseResponse(text) {
