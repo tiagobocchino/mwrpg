@@ -97,6 +97,30 @@ não é retrabalho, é evolução.
 - No painel do Brevo, em **Statistics** → **Transactional**, aparece o
   envio recente.
 
+## Sobre os avisos "DKIM: Padrão" e "DMARC: domínio Freemail não é recomendado"
+
+Depois de verificar o remetente (passo 6), o painel do Brevo mostra dois
+avisos amarelos — são esperados, não um sinal de que algo deu errado:
+
+- **DKIM: Padrão** — o Brevo assina com a própria chave dele, não uma
+  específica pro seu domínio (porque `gmail.com`/`hotmail.com`/etc. não
+  é um domínio que você controla o DNS).
+- **DMARC: domínio Freemail não é recomendado** — desde 2026 o Gmail
+  reforçou a fiscalização de DMARC e recomenda **não usar endereço
+  pessoal gratuito como remetente de email transacional via terceiro**.
+
+**O que isso significa na prática, sem exagerar nem minimizar**: o
+Gmail passou a **rejeitar de vez** quem descumpre isso, mas essa regra
+dura vale pra quem manda 5.000+ emails/dia — não é o nosso caso na fase
+de teste. No nosso volume, o risco real é a mensagem **cair mais na
+caixa de spam**, principalmente quando quem recebe também é Gmail.
+
+**Dá pra usar assim mesmo pra começar.** Só avise os testers a
+conferirem spam na primeira vez (já está na seção Verificação acima). A
+solução definitiva — verificar um remetente num domínio próprio do
+projeto — fica pra quando o MWRPG tiver domínio; trocar o "Sender
+email" depois é rápido, não é retrabalho.
+
 ## Erros comuns
 
 - **Supabase recusa salvar as configurações de SMTP** — confira porta
