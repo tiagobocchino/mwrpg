@@ -1,6 +1,6 @@
 # MWRPG — A Coroa Enterrada de Ys
 
-RPG solo narrativo conduzido por Mestre IA. Chat central, mapa de cenário, ficha do jogador + 3 NPCs companheiros. Sistema próprio **D6 das Três Letras** (CRP/MNT/ALM, 2d6 + atributo).
+RPG solo narrativo conduzido por Mestre IA. Chat central, mapa de cenário, ficha do jogador + 3 NPCs companheiros. Sistema próprio **D6 das Três Letras** (CRP/MNT/ALM, 2d6 + atributo). Progresso salvo automaticamente no navegador (localStorage) — botão "Continuar" retoma a última campanha.
 
 > Cenário inicial: lenda bretã de Ys, fantasia low-magic. Fontes em domínio público (SRD 5.1 CC-BY 4.0, Project Gutenberg, Sacred Texts).
 
@@ -20,6 +20,7 @@ RPG solo narrativo conduzido por Mestre IA. Chat central, mapa de cenário, fich
 │   ├── data.js             # cenário, jogador, NPCs, mapa
 │   ├── engine.js           # rolagem 2d6, bandas, ações de combate
 │   ├── master.js           # prompt do mestre + parser JSON
+│   ├── storage.js          # persistência local (localStorage) — save/continuar
 │   ├── components.jsx      # Chat, Map, Sheet, Dice, Topbar
 │   ├── app.jsx             # estado, fluxo de turno
 │   └── tweaks-panel.jsx    # painel de tweaks

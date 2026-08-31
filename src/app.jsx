@@ -30,6 +30,7 @@ function App() {
   const [player, setPlayer] = useS(window.MWRPG_DATA.player);
   const [npcs] = useS(window.MWRPG_DATA.npcs);
   const [partyAt, setPartyAt] = useS('tavern');
+  const [canContinue, setCanContinue] = useS(() => window.MWRPG_STORAGE.hasSave());
   const history = useR([]);
 
   // tema via data-attr
@@ -38,6 +39,27 @@ function App() {
   // primeiro turno: histórico inicia com a intro
   useE(() => { history.current = [{ role: 'master', content: window.MWRPG_DATA.scenario.intro }]; }, []);
 
+  // v0.2 — autosave: grava progresso a cada mudança de estado relevante.
+  // Pula o primeiro render pra não sobrescrever um save existente antes do
+  // jogador decidir "Continuar" ou "Recomeçar".
+  const skipFirstSave = useR(true);
+  useE(() => {
+    if (skipFirstSave.current) { skipFirstSave.current = false; return; }
+    window.MWRPG_STORAGE.save({ messages, history: history.current, options, mode, player, partyAt });
+  }, [messages, options, mode, player, partyAt]);
+
+  const handleContinue = useCB(() => {
+    const saved = window.MWRPG_STORAGE.load();
+    if (!saved) return;
+    setMessages(saved.messages || []);
+    history.current = saved.history || [];
+    setOptions(saved.options || []);
+    setMode(saved.mode || 'dialog');
+    setPlayer(saved.player || window.MWRPG_DATA.player);
+    setPartyAt(saved.partyAt || 'tavern');
+    setCanContinue(false);
+  }, []);
+
   async function boot() {
     setThinking(true);
     setThinking(false);
@@ -45,6 +67,7 @@ function App() {
 
   const handleChoose = useCB(async (option, idx) => {
     if (thinking) return;
+    setCanContinue(false);
     // 1. registrar fala do jogador
     const playerMsg = { role: 'player', content: option.label };
     setMessages(m => [...m, playerMsg]);
@@ -86,6 +109,7 @@ function App() {
 
   const handleFree = useCB(async (text) => {
     if (thinking) return;
+    setCanContinue(false);
     setMessages(m => [...m, { role: 'player', content: text }]);
     history.current.push({ role: 'player', content: text });
     setOptions([]);
@@ -147,11 +171,18 @@ function App() {
     history.current = [{ role: 'master', content: intro }];
     setPlayer(window.MWRPG_DATA.player);
     setPartyAt('tavern');
+    setCanContinue(false);
+    window.MWRPG_STORAGE.clear();
   }
 
   return (
     <div className="app" data-screen-label="MWRPG — A Coroa Enterrada de Ys">
-      <Topbar scenarioTitle={window.MWRPG_DATA.scenario.title} onReset={handleReset} />
+      <Topbar
+        scenarioTitle={window.MWRPG_DATA.scenario.title}
+        onReset={handleReset}
+        canContinue={canContinue}
+        onContinue={handleContinue}
+      />
 
       <div className="col col-left">
         <Sheet char={player} isPlayer />

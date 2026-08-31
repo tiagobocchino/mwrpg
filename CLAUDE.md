@@ -134,6 +134,7 @@ mwrpg/
     ├── data.js             # window.MWRPG_DATA — cenário, jogador, NPCs, mapa
     ├── engine.js           # window.MWRPG_ENGINE — d6, roll2d6, COMBAT_ACTIONS
     ├── master.js           # window.MWRPG_MASTER — ask(), parseResponse(), SYSTEM_PROMPT
+    ├── storage.js           # window.MWRPG_STORAGE — save(), load(), clear(), hasSave() (localStorage, v0.2)
     ├── components.jsx      # Chat, MapPanel, Sheet, DiceOverlay, Topbar, Option, Message
     ├── app.jsx             # App — estado, fluxo de turno, handlers
     └── tweaks-panel.jsx    # painel de tweaks (TweaksPanel, TweakSection, TweakRadio, TweakToggle, useTweaks)
@@ -145,9 +146,10 @@ Em `index.html`, scripts carregam nesta ordem (dependências antes de quem usa):
 2. `src/data.js` (vanilla)
 3. `src/engine.js` (vanilla)
 4. `src/master.js` (vanilla)
-5. `src/tweaks-panel.jsx` (Babel)
-6. `src/components.jsx` (Babel)
-7. `src/app.jsx` (Babel)
+5. `src/storage.js` (vanilla)
+6. `src/tweaks-panel.jsx` (Babel)
+7. `src/components.jsx` (Babel)
+8. `src/app.jsx` (Babel)
 
 ### 6.2 Convenção: scripts Babel não compartilham scope
 Cada `<script type="text/babel">` vira IIFE separada após Babel. Para compartilhar, sempre exporte via `Object.assign(window, { ... })` no fim do arquivo, e importe via `const X = window.X` no início do arquivo consumidor.
@@ -208,9 +210,10 @@ Atualmente expõe: `theme`, `allowFreeText`, `showDice`. Ampliar conforme novos 
 
 ## 10. ROADMAP (em ordem de prioridade)
 
-### v0.2 — Persistência local
-- localStorage para `messages`, `history`, `player`, `partyAt`.
-- Botão "Continuar" no topbar quando há save.
+### v0.2 — Persistência local ✅ concluído
+- localStorage para `messages`, `history`, `player`, `partyAt`, `options`, `mode` (`src/storage.js` → `window.MWRPG_STORAGE`).
+- Botão "Continuar" no topbar quando há save; some após "Recomeçar" ou após a primeira ação de uma sessão retomada.
+- "Recomeçar" limpa o save (`MWRPG_STORAGE.clear()`).
 
 ### v0.3 — Mestre IA fora do artifact host
 - Edge function em `/api/master.ts` (Vercel) → chama Claude/Anthropic ou OpenAI.

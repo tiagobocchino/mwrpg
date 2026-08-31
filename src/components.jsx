@@ -262,7 +262,7 @@ function DiceOverlay({ rolling, onDone }) {
 // ============================================================
 // TOPBAR
 // ============================================================
-function Topbar({ scenarioTitle, onReset }) {
+function Topbar({ scenarioTitle, onReset, canContinue, onContinue }) {
   return (
     <div className="topbar">
       <div className="brand">
@@ -274,6 +274,7 @@ function Topbar({ scenarioTitle, onReset }) {
       </div>
       <div className="topbar-actions">
         <span className="meta">D6 das Três Letras</span>
+        {canContinue && <button className="btn" onClick={onContinue}>Continuar</button>}
         <button className="btn btn-ghost" onClick={onReset}>Recomeçar</button>
       </div>
     </div>
