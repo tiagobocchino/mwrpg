@@ -1,0 +1,62 @@
+erDiagram
+    Scenario ||--o{ OpcaoInicial : tem
+    Scenario ||--|| Player : "acompanha"
+    Player ||--o{ NPC : "grupo (3 fixos)"
+    Scenario ||--|| MapaCidade : "usa"
+    MapaCidade ||--o{ Local : contem
+    Local ||--o| MapaInterior : "3 de 5 tem"
+    MestreIA ||--o{ AcervoEntry : "pickAcervoLore(tags, max=2)"
+
+    Scenario {
+        string id "ys"
+        string title
+        string intro "texto multi-paragrafo"
+    }
+    OpcaoInicial {
+        string id
+        string label
+        string tone
+    }
+    Player {
+        string id
+        string name
+        string role
+        int hp_hpMax
+        int mp_mpMax
+        int crp_mnt_alm "1-5 cada"
+        array tags
+    }
+    NPC {
+        string id "brennan | sira | korrin"
+        string name
+        string role
+        int hp_hpMax
+        int mp_mpMax
+        int crp_mnt_alm
+        array tags
+    }
+    MapaCidade {
+        string image "mapa-cidade-penmarch.png"
+        int width_height "2368x832"
+    }
+    Local {
+        string id "tavern|docks|chapel|lighthouse|cliff"
+        float x_y "percentual 0-100"
+        string label
+    }
+    MapaInterior {
+        string image
+        int width_height
+        object exit "coordenada de saida"
+    }
+    AcervoEntry {
+        string id "6 entradas"
+        string categoria
+        array tags
+        string resumoJogavel "redacao propria"
+        string fonte "dominio publico"
+    }
+    MestreIA {
+        string SYSTEM_PROMPT
+        string GROQ_MODEL "openai/gpt-oss-120b"
+    }

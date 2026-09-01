@@ -1,0 +1,10 @@
+flowchart TD
+    A["Turno do jogador"] --> B["1º — Groq (openai/gpt-oss-120b)<br/>api/master.js, produção real"]
+    B -- "200 OK" --> Z["Resposta JSON estrita"]
+    B -- "429 (cota estourada)" --> Q["quotaExceededResponse()<br/>NÃO cai pro fallback — mensagem honesta,<br/>não conta como rodada"]
+    B -- "outro erro / offline" --> C["2º — window.claude.complete<br/>só existe no artifact host da Anthropic"]
+    C -- "disponível" --> Z
+    C -- "indisponível" --> D["3º — mockResponse()<br/>modo offline, respostas guiadas sem IA"]
+    D --> Z
+    Z --> E["trimHistory(history)<br/>máx. 10 entradas recentes<br/>(limite: 8.000 tokens/min por ORG na Groq)"]
+    E --> F["guessAcervoTags(latest)<br/>+ pickAcervoLore(tags, max=2)<br/>até 2 referências de domínio público injetadas"]

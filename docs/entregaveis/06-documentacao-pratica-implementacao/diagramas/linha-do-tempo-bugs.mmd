@@ -1,0 +1,20 @@
+timeline
+    title 13 bugs reais, do protótipo à produção
+    section Frontend (v0.2)
+        Overflow horizontal mobile 375px : topbar sem min-width:0
+        Cache servindo CSS velho : resolvido com ?v=3 na URL
+    section Ferramental (sessão inteira)
+        git push quebrado no sandbox : GCM exige OAuth interativo que o ambiente não completa
+        Acentos mangulados no PDF : falso alarme do pypdf — fonte Arial TTF resolveu de vez
+        Numeração de lista reiniciava : sub-headers ### quebravam a continuidade no Manual 04
+    section Mestre IA em produção (v0.3)
+        503 groq_not_configured : env var precisou de novo deploy
+        502 upstream 401 : chave da Groq inválida, regenerada
+    section Login e email (v0.4)
+        Erro em inglês exposto ao jogador : rate limit cru virou AUTH_ERROR_MESSAGES
+        Email embutido do Supabase não entrega : só membros do projeto, 2/hora — Brevo SMTP
+        535 Authentication failed (1) : IP não autorizado bloqueado no Brevo
+        535 Authentication failed (2) : campo Username errado (email da conta, não o login SMTP)
+        Link mágico caía em localhost porta 3000 : Site URL de fábrica + Redirect URLs incompletos
+    section Mapa (v0.5)
+        Tiles autotile viravam padrão listrado : Kenney RPG Base repetido em grade — trocado por cor sólida + sprites pontuais

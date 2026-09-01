@@ -1,0 +1,21 @@
+flowchart TD
+    A["index.html carrega scripts em ordem fixa"] --> B["1. React+ReactDOM+Babel standalone+<br/>Supabase JS+Leaflet (CDN, SRI pinado)"]
+    B --> C["2. src/data.js (vanilla)"]
+    C --> D["3. src/maps.js (vanilla)"]
+    D --> E["4. src/acervo.js (vanilla)"]
+    E --> F["5. src/engine.js (vanilla)"]
+    F --> G["6. src/master.js (vanilla, usa pickAcervoLore)"]
+    G --> H["7. src/storage.js (vanilla)"]
+    H --> I["8. src/auth.js (vanilla, usa window.supabase)"]
+    I --> J["9. src/cloudSync.js (vanilla, usa MWRPG_AUTH)"]
+    J --> K["10. tweaks-panel.jsx (Babel, transpila no navegador)"]
+    K --> L["11. components.jsx (Babel)"]
+    L --> M["12. app.jsx (Babel) — monta a árvore React"]
+    N["Cada arquivo .js vanilla exporta via<br/>Object.assign(window, {...}) no final"] -.-> C
+    N -.-> D
+    N -.-> E
+    N -.-> F
+    N -.-> G
+    O["Cada script Babel vira IIFE isolada —<br/>nunca compartilha escopo sem passar por window"] -.-> K
+    O -.-> L
+    O -.-> M

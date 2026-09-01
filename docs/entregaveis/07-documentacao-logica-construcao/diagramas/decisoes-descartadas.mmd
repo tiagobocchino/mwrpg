@@ -1,0 +1,7 @@
+flowchart TD
+    A["Gemini (free tier)"] -->|"descartado — política de dados"| B["Groq escolhido<br/>(Assembleia 02)"]
+    C["Resend (SMTP)"] -->|"descartado — só manda pro dono da conta<br/>sem domínio verificado por DNS"| D["Brevo escolhido<br/>(Manual 04)"]
+    E["Email embutido do Supabase"] -->|"adotado por padrão,<br/>depois revelou limite estrutural real"| D
+    F["Sala + Realtime + criação de personagem<br/>(Assembleia 01, aprovado 8x1)"] -->|"abandonado em silêncio,<br/>nunca formalizado"| G["Retrospectiva 01<br/>audita o desvio"]
+    G --> H["Assembleia 03<br/>retoma: personagem primeiro,<br/>sala fica registrada, não esquecida"]
+    I["git push automático do agente"] -->|"ambiente sandboxed não completa<br/>OAuth interativo do GCM"| J["Workaround: commit local +<br/>push manual do Tiago, toda vez"]

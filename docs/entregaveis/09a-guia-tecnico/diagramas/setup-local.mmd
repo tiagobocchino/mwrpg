@@ -1,0 +1,13 @@
+flowchart TD
+    A["git clone github.com/tiagobocchino/mwrpg"] --> B["Nada pra instalar —<br/>zero npm install, sem package.json"]
+    B --> C["Rodar servidor estático local<br/>python3 -m http.server 8000<br/>ou npx serve ."]
+    C --> D["Abrir http://localhost:8000"]
+    D --> E{"Quer Mestre IA real<br/>e login funcionando local?"}
+    E -- "não, só testar UI/offline" --> F["Jogo funciona em modo offline<br/>(mockResponse) sem login"]
+    E -- "sim" --> G["/api não existe local<br/>(só existe como Vercel Function em produção)"]
+    G --> H["Opção A — testar contra produção<br/>mwrpg-one.vercel.app"]
+    G --> I["Opção B — vercel dev<br/>(roda as Functions localmente)"]
+    H --> J["Configurar GROQ_API_KEY, SUPABASE_URL,<br/>SUPABASE_PUBLISHABLE_KEY no painel Vercel<br/>(Manuais 01, 02)"]
+    I --> J
+    J --> K["Deploy: push em main<br/>→ Vercel redeploya automático"]
+    K --> L["Testar de verdade em produção<br/>(nunca só local)"]

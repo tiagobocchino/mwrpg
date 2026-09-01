@@ -1,0 +1,22 @@
+flowchart TD
+    A["Jogador escolhe uma opção<br/>(clique, tecla 1-6, ou texto livre)"] --> B{"needsRoll?"}
+    B -- sim --> C["DiceOverlay — animação 1.7s<br/>2d6 + atributo (src/engine.js)"]
+    B -- não --> D
+    C --> D["setThinking(true)<br/>mensagem do jogador entra no chat"]
+    D --> E["MWRPG_MASTER.ask(history, prompt)"]
+    E --> F{"Groq responde?"}
+    F -- "200 OK" --> G["parseResponse — valida JSON estrito"]
+    F -- "429 quota" --> H["quotaExceededResponse()<br/>mensagem honesta, não conta rodada"]
+    F -- "outro erro / offline" --> I["fallback: window.claude.complete<br/>ou mockResponse()"]
+    G --> J["applyMasterResponse(resp)"]
+    I --> J
+    H --> K["thinking = false<br/>campanha continua salva"]
+    J --> L{"resp.mapHint?"}
+    L -- "moveTo" --> M["setPartyAt + mapScale='city'"]
+    L -- "enterInterior" --> N["setMapScale('interior')<br/>só se mwrpgHasInterior(local)"]
+    L -- "null" --> O
+    M --> O["novo mode, novas options,<br/>turnCount++, autosave (nuvem ou localStorage)"]
+    N --> O
+    O --> P{"turnCount >= 40?"}
+    P -- sim --> Q["demoLocked = true<br/>mensagem de fim de demo"]
+    P -- não --> R["thinking = false<br/>aguarda próxima escolha"]

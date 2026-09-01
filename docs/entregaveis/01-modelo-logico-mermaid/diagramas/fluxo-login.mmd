@@ -1,0 +1,19 @@
+flowchart TD
+    A["Jogador abre mwrpg-one.vercel.app"] --> B{"Supabase configurado?<br/>GET /api/config"}
+    B -- "não (503 ou local sem backend)" --> C["Modo sem login<br/>localStorage (v0.2)"]
+    B -- "sim" --> D["LoginGate — modo 'magic'"]
+    D --> E["signInWithOtp(email)<br/>emailRedirectTo = origin atual"]
+    E --> F["Supabase envia email<br/>(Brevo SMTP próprio, Manual 04)"]
+    F --> G["Jogador clica o link"]
+    G --> H{"Site URL e Redirect URLs<br/>corretos no painel? (Manual 05)"}
+    H -- "não" --> I["redireciona pro Site URL padrão<br/>(achado real: caiu em localhost:3000)"]
+    H -- "sim" --> J["sessão criada,<br/>volta pra origem certa"]
+    J --> K["SetPasswordGate<br/>(com opção de pular)"]
+    K -- "define senha" --> L["auth.updateUser({password})"]
+    K -- "pula" --> M["entra sem senha definida"]
+    L --> N["hidrata/cria campaign_session<br/>no Supabase (cloudSync.js)"]
+    M --> N
+    N --> O["Jogo carregado,<br/>persistência em nuvem ativa"]
+    D -.-> P["modo 'password'<br/>JÁ TENHO SENHA — ENTRAR DIRETO"]
+    P --> Q["signInWithPassword(email, senha)"]
+    Q --> N

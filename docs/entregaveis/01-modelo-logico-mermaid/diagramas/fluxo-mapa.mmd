@@ -1,0 +1,24 @@
+flowchart LR
+    subgraph Cidade["Escala cidade — Penmarc'h (2368x832px)"]
+        T["Taberna do Pescador Coxo"]
+        C["Capela de Sant Vinog"]
+        F["Farol Apagado"]
+        D["Cais Velho (sem interior)"]
+        P["Penhasco da Bruma (sem interior)"]
+    end
+    subgraph Interior["Escala interior"]
+        TI["mapa-taberna.png (640x512)"]
+        CI["mapa-capela.png (640x512)"]
+        FI["mapa-farol.png (512x448)"]
+    end
+    T -- "clique no marcador 'Vocês'<br/>(mwrpgHasInterior=true)" --> TI
+    C -- "clique no marcador 'Vocês'" --> CI
+    F -- "clique no marcador 'Vocês'" --> FI
+    TI -- "clique no marcador de saída (↩)" --> T
+    CI -- "clique no marcador de saída (↩)" --> C
+    FI -- "clique no marcador de saída (↩)" --> F
+    D -.-> X["sem transição — cenário externo só"]
+    P -.-> X
+    M["Mestre IA — mapHint.enterInterior<br/>no SYSTEM_PROMPT"] -.->|"decide quando"| TI
+    M -.-> CI
+    M -.-> FI

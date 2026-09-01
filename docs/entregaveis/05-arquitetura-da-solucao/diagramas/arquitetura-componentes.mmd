@@ -1,0 +1,36 @@
+flowchart TB
+    subgraph Cliente["Navegador do jogador (desktop ou mobile 375px+)"]
+        UI["React 18 + Babel standalone<br/>index.html + src/*.jsx"]
+    end
+
+    subgraph CDN["CDN — unpkg / jsdelivr"]
+        R["React, ReactDOM, Babel standalone"]
+        SB["Supabase JS 2.112.4"]
+        LF["Leaflet 1.9.4"]
+        GF["Google Fonts"]
+    end
+
+    subgraph Vercel["Vercel (Hobby, gratuito) — mwrpg-one.vercel.app"]
+        Static["Hosting estático<br/>index.html, src/, assets/maps/*.png"]
+        FnMaster["api/master.js<br/>Vercel Function"]
+        FnConfig["api/config.js<br/>Vercel Function"]
+    end
+
+    subgraph Groq["Groq API"]
+        Model["openai/gpt-oss-120b<br/>free tier: 8k tok/min, 200k tok/dia (por ORG)"]
+    end
+
+    subgraph Supabase["Supabase (projeto do Tiago)"]
+        Auth["Auth — magic link + senha"]
+        PG["Postgres — characters, campaign_sessions<br/>RLS por auth.uid()"]
+        SMTP["Email — Brevo SMTP custom<br/>(built-in do Supabase só entrega a membros do projeto)"]
+    end
+
+    UI -- carrega --> CDN
+    UI -- "GET /" --> Static
+    UI -- "POST /api/master" --> FnMaster
+    FnMaster -- "GROQ_API_KEY (secreta)" --> Model
+    UI -- "GET /api/config" --> FnConfig
+    UI -- "signInWithOtp / CRUD direto" --> Auth
+    UI -- "CRUD direto (RLS protege)" --> PG
+    Auth -- "envia link mágico via" --> SMTP

@@ -1,0 +1,33 @@
+erDiagram
+    "auth.users" ||--o{ characters : "user_id (RLS)"
+    "auth.users" ||--o{ campaign_sessions : "user_id (RLS)"
+    characters ||--o{ campaign_sessions : "character_id (nullable, morta hoje)"
+
+    "auth.users" {
+        uuid id PK
+        text email
+    }
+    characters {
+        uuid id PK
+        uuid user_id FK
+        text name
+        jsonb data "espelha MWRPG_DATA.player"
+        timestamptz created_at
+        timestamptz updated_at
+    }
+    campaign_sessions {
+        uuid id PK
+        uuid user_id FK
+        uuid character_id FK "nunca preenchido em produção"
+        text scenario_id "default 'ys'"
+        jsonb messages
+        jsonb history
+        jsonb options
+        text mode "default 'dialog'"
+        text party_at "default 'tavern'"
+        integer turn_count "default 0"
+        integer demo_limit "default 40"
+        text status "active | demo_limit_reached | finished"
+        timestamptz created_at
+        timestamptz updated_at
+    }

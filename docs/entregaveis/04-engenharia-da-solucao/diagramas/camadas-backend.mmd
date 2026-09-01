@@ -1,0 +1,16 @@
+flowchart TD
+    subgraph Vercel["Vercel Functions (api/) — CommonJS, sem servidor próprio"]
+        M["api/master.js (77 linhas)<br/>proxy pro Groq — esconde GROQ_API_KEY"]
+        C["api/config.js (17 linhas)<br/>expõe SUPABASE_URL + PUBLISHABLE_KEY<br/>(seguro expor — chave pública)"]
+    end
+    subgraph Externos["Serviços externos"]
+        G["Groq API<br/>openai/gpt-oss-120b"]
+        S["Supabase<br/>Auth + Postgres + RLS"]
+    end
+    Browser["Navegador (React, zero-build)"] -- "POST /api/master<br/>{ messages }" --> M
+    M -- "Authorization: Bearer GROQ_API_KEY" --> G
+    G -- "200 / 429 / erro" --> M
+    M -- "{ text } ou { error }" --> Browser
+    Browser -- "GET /api/config" --> C
+    C --> Browser
+    Browser -- "signInWithOtp, CRUD direto<br/>(sem passar por api/)" --> S

@@ -1,0 +1,7 @@
+# Dependências só da FERRAMENTA de geração de documentação — não faz
+# parte do requirements.txt do app (isso aqui nunca roda em produção).
+markdown>=3.7
+beautifulsoup4>=4.12
+python-docx>=1.1
+reportlab>=4.2
+Pillow>=11.0

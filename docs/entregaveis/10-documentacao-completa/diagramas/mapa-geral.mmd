@@ -1,0 +1,33 @@
+flowchart TB
+    subgraph Nucleo["Núcleo do jogo"]
+        Regras["Sistema de regras<br/>D6 das Três Letras"]
+        Mestre["Mestre IA<br/>Groq + contrato JSON"]
+        Acervo["Acervo narrativo<br/>6 entradas, domínio público"]
+    end
+    subgraph Mundo["Mundo navegável"]
+        Mapa["Mapa (Leaflet)<br/>cidade + 3 interiores"]
+        Cenario["Cenário fixo<br/>'A Coroa Enterrada de Ys'"]
+    end
+    subgraph Conta["Conta e persistência"]
+        Login["Login<br/>magic link + senha"]
+        Nuvem["Persistência em nuvem<br/>Supabase Postgres + RLS"]
+        Local["Fallback local<br/>localStorage"]
+    end
+    subgraph Infra["Infraestrutura"]
+        Vercel["Vercel — hosting + 2 Functions"]
+        Deploy["Deploy automático por push"]
+    end
+    subgraph Processo["Como foi construído"]
+        Metodo["Método de assembleia<br/>3 assembleias rodadas"]
+        Retro["Retrospectiva 01<br/>desvio de método auditado"]
+    end
+
+    Regras --> Mestre
+    Acervo --> Mestre
+    Mestre --> Mapa
+    Mapa --> Cenario
+    Login --> Nuvem
+    Login -.-> Local
+    Nuvem --> Vercel
+    Vercel --> Deploy
+    Metodo --> Retro
