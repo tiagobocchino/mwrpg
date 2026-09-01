@@ -12,6 +12,7 @@ RPG solo narrativo conduzido por Mestre IA. Chat central, mapa de cenário, fich
 - **Mestre IA:** Groq (`openai/gpt-oss-120b`, camada gratuita) via `api/master.js` (Vercel Function) → `window.claude.complete` (artifact host) → modo offline. Nessa ordem de fallback.
 - **Login + persistência:** Supabase Auth (link mágico) + Postgres (`campaign_sessions`, `characters`), via `src/auth.js` + `src/cloudSync.js` + `api/config.js`. Sem Supabase configurado, o jogo funciona sem login (localStorage).
 - **Acervo:** referências curadas de domínio público (fábulas, mitologia, folclore) em `src/acervo.js`, com proveniência em `docs/ACERVO-PROVENIENCIA.md`.
+- **Mapas:** Leaflet.js (`CRS.Simple`, mapa em pixel) + arte CC0 do Kenney "RPG Base" — cidade (5 locais) e 3 interiores navegáveis, mestre decide quando entrar/sair via `mapHint.enterInterior`. `src/maps.js` + `docs/MAPAS-PROVENIENCIA.md`.
 - **Tipografia:** Cinzel + EB Garamond + IM Fell English + IBM Plex Mono (Google Fonts).
 
 ## Estrutura
@@ -24,19 +25,21 @@ RPG solo narrativo conduzido por Mestre IA. Chat central, mapa de cenário, fich
 │   └── config.js           # Vercel Function — config pública do Supabase pro cliente
 ├── supabase/
 │   └── schema.sql          # tabelas characters + campaign_sessions, RLS
-├── docs/                   # método, assembleias, proveniência do acervo, proposta do mapa
+├── docs/                   # método, assembleias, proveniência do acervo e dos mapas
 ├── .claude/agents/         # roster de agentes deste projeto
 ├── src/
 │   ├── styles.css          # design system "Manuscrito Vivo"
 │   ├── data.js             # cenário, jogador, NPCs, mapa
+│   ├── maps.js             # mapas Leaflet (cidade + interiores), mwrpgHasInterior()
+│   ├── assets/maps/*.png   # arte dos mapas (Kenney CC0 + terreno próprio)
 │   ├── acervo.js           # referências de domínio público (pickAcervoLore)
 │   ├── engine.js           # rolagem 2d6, bandas, ações de combate
 │   ├── master.js           # prompt do mestre + parser JSON + fallback em cadeia
 │   ├── storage.js          # persistência local (localStorage) — fallback sem login
 │   ├── auth.js             # login por link mágico (Supabase Auth)
 │   ├── cloudSync.js        # CRUD de campaign_sessions no Supabase
-│   ├── components.jsx      # Chat, Map, Sheet, Dice, Topbar, LoginGate
-│   ├── app.jsx             # estado, fluxo de turno, login gate, limite de demo
+│   ├── components.jsx      # Chat, MapPanel (Leaflet), Sheet, Dice, Topbar, LoginGate
+│   ├── app.jsx             # estado, fluxo de turno, login gate, limite de demo, mapScale
 │   └── tweaks-panel.jsx    # painel de tweaks
 ├── Relatorio_Pesquisa_RPG.md   # pesquisa fundadora
 ├── vercel.json

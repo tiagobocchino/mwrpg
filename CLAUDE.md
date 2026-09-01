@@ -157,6 +157,7 @@ mwrpg/
 └── src/
     ├── styles.css          # design system Manuscrito Vivo
     ├── data.js             # window.MWRPG_DATA — cenário, jogador, NPCs, mapa
+    ├── maps.js              # window.MWRPG_MAPS — mapas Leaflet (cidade + interiores), mwrpgHasInterior()
     ├── acervo.js            # window.MWRPG_ACERVO — referências de domínio público, pickAcervoLore()
     ├── engine.js           # window.MWRPG_ENGINE — d6, roll2d6, COMBAT_ACTIONS
     ├── master.js           # window.MWRPG_MASTER — ask() [Groq → claude.complete → offline], SYSTEM_PROMPT
@@ -170,17 +171,18 @@ mwrpg/
 
 ### 6.1 Ordem de carregamento (importante!)
 Em `index.html`, scripts carregam nesta ordem (dependências antes de quem usa):
-1. React + ReactDOM + Babel standalone + **supabase-js** (CDN, integrity hashes pinados)
+1. React + ReactDOM + Babel standalone + **supabase-js** + **Leaflet** (CDN, integrity hashes pinados)
 2. `src/data.js` (vanilla)
-3. `src/acervo.js` (vanilla — precisa vir antes de `master.js`, que usa `pickAcervoLore`)
-4. `src/engine.js` (vanilla)
-5. `src/master.js` (vanilla)
-6. `src/storage.js` (vanilla)
-7. `src/auth.js` (vanilla — usa `window.supabase.createClient`)
-8. `src/cloudSync.js` (vanilla — usa `window.MWRPG_AUTH.getClient()`)
-9. `src/tweaks-panel.jsx` (Babel)
-10. `src/components.jsx` (Babel)
-11. `src/app.jsx` (Babel)
+3. `src/maps.js` (vanilla — `window.MWRPG_MAPS`, usado por `MapPanel` em `components.jsx`)
+4. `src/acervo.js` (vanilla — precisa vir antes de `master.js`, que usa `pickAcervoLore`)
+5. `src/engine.js` (vanilla)
+6. `src/master.js` (vanilla)
+7. `src/storage.js` (vanilla)
+8. `src/auth.js` (vanilla — usa `window.supabase.createClient`)
+9. `src/cloudSync.js` (vanilla — usa `window.MWRPG_AUTH.getClient()`)
+10. `src/tweaks-panel.jsx` (Babel)
+11. `src/components.jsx` (Babel)
+12. `src/app.jsx` (Babel)
 
 `api/master.js` e `api/config.js` não entram nessa lista — não são
 carregados pelo navegador, são Vercel Functions servidas em `/api/*`.
@@ -272,10 +274,31 @@ Atualmente expõe: `theme`, `allowFreeText`, `showDice`. Ampliar conforme novos 
 - **Erros de autenticação traduzidos e tratados** (`src/auth.js` → `AUTH_ERROR_MESSAGES`, por `error.code`, nunca por texto em inglês que pode mudar): rate limit, email inválido, remetente não autorizado, link expirado/já usado, provedor desativado, etc. — cobre também o retorno de um link mágico expirado (erro vem pela URL, não por exceção — `consumeUrlError()`).
 - **Não testado ponta a ponta ainda** — precisa do Tiago configurar o Brevo (Manual 04) e confirmar login real (clicar o link mágico) + uma campanha completa em produção.
 
-### Mapa com duas escalas — proposta feita, aguardando aprovação
-Ver `docs/PROPOSTA-MAPA.md`. Recomendação: Leaflet.js (`CRS.Simple`, ~46KB
-gzip, CDN, cabe no zero-build) + arte CC0 do Kenney.nl (cidade + interior
-da taberna). Não implementado — só a proposta.
+### v0.5 — Mapa com duas escalas ✅ implementado, aguardando teste do Tiago em produção
+Ver `docs/PROPOSTA-MAPA.md` (proposta original, aprovada e expandida pelo
+Tiago em 31/08/2026: "faça alguns para o próprio mestre decidir onde e
+quando usar os lugares e cidades"). Implementação:
+- `src/maps.js` — `window.MWRPG_MAPS`: mapa da cidade (Penmarc'h, 5
+  locais) + 3 interiores desenhados (Taberna, Capela, Farol). `docks` e
+  `cliff` são só pontos externos, sem interior — de propósito.
+- `MapPanel` (`src/components.jsx`) — reescrito com **Leaflet.js**
+  (`L.CRS.Simple`, mapas em pixel, não geográficos). Clicar no marcador
+  "Vocês" quando ele está sobre um local com interior entra na escala de
+  interior; um marcador de saída (↩) volta pra cidade.
+- `src/app.jsx` — estado `mapScale` ('city' | 'interior'),
+  `handleEnterInterior`/`handleExitInterior`, e `applyMasterResponse`
+  interpreta `resp.mapHint.enterInterior` (true entra, false sai) além do
+  `moveTo` já existente.
+- `src/master.js` → `SYSTEM_PROMPT` — instrui o mestre sobre
+  `enterInterior` e quais locais têm interior de verdade (só
+  tavern/chapel/lighthouse), pra ele nunca pedir uma transição inválida.
+- Arte: sprites CC0 do Kenney "RPG Base" (prédios/portas/árvores/props)
+  sobre terreno em cor sólida desenhada via PIL — proveniência completa
+  em `docs/MAPAS-PROVENIENCIA.md`.
+- **Testado localmente (31/08/2026)**: transição cidade→interior→cidade
+  funcionando (clique no marcador, depois no ↩), sem erros de console,
+  layout mobile (375px) sem overflow horizontal. Ainda não testado em
+  produção real pelo Tiago.
 
 ### v0.5 — RAG com Supabase pgvector
 - 4 coleções: `regras`, `bestiario`, `lore_mundo`, `historico_campanha`.

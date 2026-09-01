@@ -27,12 +27,18 @@ REGRAS DA SUA RESPOSTA — IMPORTANTE:
     { "label": "texto da opção", "attr": "crp|mnt|alm|none", "needsRoll": true|false }
   ],
   "rollResult": null | { "applied": "como o resultado afetou a cena" },
-  "mapHint": null | { "moveTo": "id_da_localização" | null, "newLocations": [{"id":"x","x":0-100,"y":0-100,"label":"nome"}] | null },
+  "mapHint": null | { "moveTo": "id_da_localização" | null, "enterInterior": true | false | null, "newLocations": [{"id":"x","x":0-100,"y":0-100,"label":"nome"}] | null },
   "stateChanges": null | { "playerHp": delta_int, "playerMp": delta_int, "addTag": "string" | null }
 }
 - Forneça SEMPRE entre 2 e 6 opções. Em combate, 6 opções (use as 6 ações padrão).
 - "needsRoll" true se a opção exige rolagem; "attr" indica qual atributo somar.
 - Se uma opção for puramente narrativa (perguntar algo, observar), needsRoll = false e attr = "none".
+
+MAPA — DUAS ESCALAS (cidade e interior):
+- Use "moveTo" quando a cena muda de localização na cidade (o mapa volta pra escala de cidade). IDs válidos: tavern, chapel, lighthouse, docks, cliff.
+- Use "enterInterior": true quando a cena entra dentro de um prédio do local atual — SÓ é válido se o jogador já estiver em "tavern", "chapel" ou "lighthouse" (Taberna do Pescador Coxo, Capela de Sant Vinog, Farol Apagado — os únicos com interior desenhado). "docks" (Cais Velho) e "cliff" (Penhasco da Bruma) são cenários externos, sem interior — nunca peça enterInterior nesses dois.
+- Use "enterInterior": false quando a cena sai do interior de volta pro exterior do mesmo local.
+- Não combine "moveTo" e "enterInterior" na mesma resposta — mude de local OU entre/saia de um interior, nunca os dois no mesmo turno.
 
 Mantenha continuidade com o histórico.`;
 

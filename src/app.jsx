@@ -44,6 +44,7 @@ function App() {
   const [player, setPlayer] = useS(window.MWRPG_DATA.player);
   const [npcs] = useS(window.MWRPG_DATA.npcs);
   const [partyAt, setPartyAt] = useS(init.partyAt);
+  const [mapScale, setMapScale] = useS('city'); // 'city' | 'interior' (v0.5)
   const [canContinue, setCanContinue] = useS(() => window.MWRPG_STORAGE.hasSave());
   const [turnCount, setTurnCount] = useS(0);
   const [demoLocked, setDemoLocked] = useS(false);
@@ -102,6 +103,7 @@ function App() {
           setOptions(existing.options || []);
           setMode(existing.mode || 'dialog');
           setPartyAt(existing.party_at || 'tavern');
+          setMapScale('city');
           setTurnCount(existing.turn_count || 0);
           setDemoLocked(existing.status === 'demo_limit_reached');
         } else {
@@ -140,8 +142,14 @@ function App() {
     setMode(saved.mode || 'dialog');
     setPlayer(saved.player || window.MWRPG_DATA.player);
     setPartyAt(saved.partyAt || 'tavern');
+    setMapScale('city');
     setCanContinue(false);
   }, []);
+
+  const handleEnterInterior = useCB((locationId) => {
+    if (locationId === partyAt) setMapScale('interior');
+  }, [partyAt]);
+  const handleExitInterior = useCB(() => setMapScale('city'), []);
 
   const handleSignIn = useCB((email) => window.MWRPG_AUTH.signInWithEmail(email), []);
   const handleSignInPassword = useCB((email, password) => window.MWRPG_AUTH.signInWithPassword(email, password), []);
@@ -250,8 +258,16 @@ function App() {
       setOptions(resp.options.slice(0, 6));
     }
 
+    // v0.5 — o mestre decide onde e quando usar cada mapa: moveTo troca
+    // o local (volta pra escala de cidade); enterInterior mostra o
+    // interior do local atual, se existir um registrado em maps.js.
     if (resp.mapHint && resp.mapHint.moveTo) {
       setPartyAt(resp.mapHint.moveTo);
+      setMapScale('city');
+    } else if (resp.mapHint && resp.mapHint.enterInterior) {
+      setMapScale(sc => (window.mwrpgHasInterior(partyAt) ? 'interior' : sc));
+    } else if (resp.mapHint && resp.mapHint.enterInterior === false) {
+      setMapScale('city');
     }
 
     if (resp.stateChanges) {
@@ -288,6 +304,7 @@ function App() {
     history.current = fresh.history;
     setPlayer(window.MWRPG_DATA.player);
     setPartyAt(fresh.partyAt);
+    setMapScale('city');
     setCanContinue(false);
     setTurnCount(0);
     setDemoLocked(false);
@@ -335,7 +352,7 @@ function App() {
           onFreeText={handleFree}
           allowFree={tweaks.allowFreeText && !demoLocked}
         />
-        <MapPanel map={{ ...window.MWRPG_DATA.map }} partyAt={partyAt} />
+        <MapPanel partyAt={partyAt} mapScale={mapScale} onEnterInterior={handleEnterInterior} onExit={handleExitInterior} />
       </div>
 
       <div className="col col-right">

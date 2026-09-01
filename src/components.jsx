@@ -133,52 +133,70 @@ function Option({ index, option, mode, onChoose }) {
 }
 
 // ============================================================
-// MAPA
+// MAPA (v0.5 — Leaflet, duas escalas: cidade + interior)
 // ============================================================
-function MapPanel({ map, partyAt }) {
+function MapPanel({ partyAt, mapScale, onEnterInterior, onExit }) {
+  const elRef = useRef(null);
+  const leafletRef = useRef(null);
+
+  const interiorId = partyAt + '_interior';
+  const showingInterior = mapScale === 'interior' && window.MWRPG_MAPS[interiorId];
+  const mapDef = showingInterior ? window.MWRPG_MAPS[interiorId] : window.MWRPG_MAPS.city;
+
+  useEffect(() => {
+    if (!elRef.current || !window.L) return;
+    const L = window.L;
+    if (leafletRef.current) { leafletRef.current.remove(); leafletRef.current = null; }
+
+    const bounds = [[0, 0], [mapDef.height, mapDef.width]];
+    const lmap = L.map(elRef.current, {
+      crs: L.CRS.Simple,
+      minZoom: -3,
+      maxZoom: 2,
+      zoomControl: true,
+      attributionControl: false
+    });
+    L.imageOverlay(mapDef.image, bounds).addTo(lmap);
+    lmap.fitBounds(bounds);
+    leafletRef.current = lmap;
+
+    const toLatLng = (px, py) => [mapDef.height - py, px];
+
+    (mapDef.markers || []).forEach((m) => {
+      const isHere = m.id === partyAt;
+      const icon = L.divIcon({
+        className: 'map-token' + (isHere ? ' map-token-here' : ''),
+        html: '<span></span>',
+        iconSize: [18, 18]
+      });
+      const marker = L.marker(toLatLng(m.x, m.y), { icon, title: m.label }).addTo(lmap);
+      marker.bindTooltip(m.label, { direction: 'top', offset: [0, -8] });
+      // só o local onde o grupo está agora pode ser "entrado" — o mestre
+      // decide pra onde o grupo vai, o mapa só mostra e deixa entrar/sair
+      if (isHere && window.mwrpgHasInterior(m.id)) {
+        marker.on('click', () => onEnterInterior && onEnterInterior(m.id));
+      }
+    });
+
+    if (mapDef.exit) {
+      const exitIcon = L.divIcon({ className: 'map-token map-token-exit', html: '<span>↩</span>', iconSize: [22, 22] });
+      const exitMarker = L.marker(toLatLng(mapDef.exit.x, mapDef.exit.y), { icon: exitIcon, title: 'Sair' }).addTo(lmap);
+      exitMarker.on('click', () => onExit && onExit());
+    }
+
+    return () => { lmap.remove(); leafletRef.current = null; };
+  }, [mapDef.id, partyAt]);
+
   return (
     <div className="parchment map">
       <div className="section-title">
-        <span>{map.title}</span>
-        <small>cenário</small>
+        <span>{mapDef.label}</span>
+        <small>{showingInterior ? 'interior' : 'cenário'}</small>
       </div>
-      <div className="map-svg-wrap">
-        <svg viewBox="0 0 100 60" preserveAspectRatio="xMidYMid meet">
-          {/* coast outline */}
-          <path d="M0,10 Q15,18 30,14 T60,18 Q80,16 100,22 L100,60 L0,60 Z"
-                fill="oklch(0.45 0.1 250 / 0.18)" stroke="oklch(0.35 0.1 250 / 0.3)" strokeWidth="0.2" />
-          <path d="M0,42 Q20,38 35,42 T65,40 Q80,42 100,38 L100,60 L0,60 Z"
-                fill="oklch(0.5 0.06 100 / 0.25)" stroke="none" />
-          {/* paths */}
-          {map.locations.map((loc, i) => (
-            i < map.locations.length - 1 ? (
-              <line key={i} x1={loc.x} y1={loc.y * 0.6}
-                    x2={map.locations[i+1].x} y2={map.locations[i+1].y * 0.6}
-                    stroke="oklch(0.55 0.02 60 / 0.25)" strokeWidth="0.2" strokeDasharray="0.5 0.5" />
-            ) : null
-          ))}
-          {/* locations */}
-          {map.locations.map(loc => (
-            <g key={loc.id} className="token" style={{ transformOrigin: `${loc.x}% ${loc.y * 0.6}%` }}>
-              <circle cx={loc.x} cy={loc.y * 0.6} r="1.4"
-                      fill={partyAt === loc.id ? 'oklch(0.50 0.15 25)' : 'oklch(0.55 0.02 60 / 0.6)'}
-                      stroke={partyAt === loc.id ? 'oklch(0.72 0.13 80)' : 'oklch(0.30 0.02 60)'}
-                      strokeWidth="0.25" />
-              {partyAt === loc.id && (
-                <circle cx={loc.x} cy={loc.y * 0.6} r="2.4"
-                        fill="none" stroke="oklch(0.72 0.13 80 / 0.6)" strokeWidth="0.2">
-                  <animate attributeName="r" values="2.4;3.2;2.4" dur="2.4s" repeatCount="indefinite" />
-                  <animate attributeName="opacity" values="0.6;0.1;0.6" dur="2.4s" repeatCount="indefinite" />
-                </circle>
-              )}
-              <text x={loc.x} y={loc.y * 0.6 - 2.2} className="token-label">{loc.label}</text>
-            </g>
-          ))}
-        </svg>
-      </div>
+      <div className="map-leaflet-wrap" ref={elRef} />
       <div className="map-legend">
         <span><span className="dot" style={{ background: 'oklch(0.50 0.15 25)' }}></span>Vocês</span>
-        <span><span className="dot" style={{ background: 'oklch(0.55 0.02 60 / 0.7)' }}></span>Local</span>
+        <span><span className="dot" style={{ background: 'oklch(0.55 0.02 60 / 0.7)' }}></span>Local (clique pra entrar)</span>
       </div>
     </div>
   );
