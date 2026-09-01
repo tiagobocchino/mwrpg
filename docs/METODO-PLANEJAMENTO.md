@@ -110,3 +110,12 @@ ação".
 Primeira aplicação: assembleia sobre a arquitetura da plataforma
 multiplayer (salas, mestre IA em produção, NPCs, persistência de
 campanha), 31/08/2026. Ver `docs/ASSEMBLEIA-01-PLATAFORMA-MULTIPLAYER.md`.
+
+## Correção de rumo (31/08/2026)
+
+Entre a Assembleia 02 e a Assembleia 03, várias decisões de porte
+relevante (login, senha pós-login, limite de demo, contador por
+campanha, sistema de mapa) foram implementadas direto, sem passar pelo
+método — cobrança justa do Tiago. Auditoria completa em
+`docs/RETROSPECTIVA-01-DESVIO-DE-METODO.md`; o método volta a valer sem
+exceção a partir da `docs/ASSEMBLEIA-03-PERSONAGEM-E-ORCAMENTO.md`.
