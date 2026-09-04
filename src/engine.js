@@ -36,5 +36,24 @@ window.MWRPG_ENGINE = (function () {
     { id: 'speak',   label: 'Falar',    glyph: '☍', attr: 'alm' }
   ];
 
-  return { d6, roll2d6, attrFromTag, COMBAT_ACTIONS };
+  // === PROGRESSÃO — Inteligência e XP (v0.8 Fase 1, Assembleia 08) ===
+  // Ganho de XP é 100% determinístico a partir da própria rolagem que o
+  // cliente já calcula — nenhum sinal novo do mestre, custo de token
+  // ZERO pra esta parte (decisão deliberada, dado o teto apertado que a
+  // Assembleia 08 marcou como risco central desta frente).
+  const XP_PER_BAND = { crit: 3, win: 2, mid: 1, fail: 0 };
+  // Inteligência sobe a cada 8 XP acumulados — número de partida (não
+  // testado em mesa ainda, o Game System Designer pediu catálogo/curva
+  // pequenos justamente pra poder calibrar depois de ver rodar de verdade).
+  const XP_PER_INT = 8;
+
+  function xpForBand(band) {
+    return XP_PER_BAND[band] || 0;
+  }
+
+  function intFromXp(xp) {
+    return Math.floor((xp || 0) / XP_PER_INT);
+  }
+
+  return { d6, roll2d6, attrFromTag, COMBAT_ACTIONS, xpForBand, intFromXp, XP_PER_INT };
 })();

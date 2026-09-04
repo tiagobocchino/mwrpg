@@ -14,6 +14,7 @@ RPG solo narrativo conduzido por Mestre IA. Chat central, mapa de cenário, fich
 - **Acervo:** referências curadas de domínio público (fábulas, mitologia, folclore) em `src/acervo.js`, com proveniência em `docs/ACERVO-PROVENIENCIA.md`.
 - **Mapas:** Leaflet.js (`CRS.Simple`, mapa em pixel) + arte CC0 do Kenney "RPG Base" — cidade (5 locais) e 3 interiores navegáveis, mestre decide quando entrar/sair via `mapHint.enterInterior`. `src/maps.js` + `docs/MAPAS-PROVENIENCIA.md`.
 - **Classes + recomeço variado (v0.6):** 3 classes mapeadas nos atributos (`src/classes.js`), nome de personagem único globalmente (índice no banco + erro traduzido com sugestão). Recomeço sorteia uma semente narrativa (`src/seeds.js`) e pede ao mestre uma abertura de verdade nova, reenviada a cada turno pra situações também variarem — não só a primeira mensagem.
+- **Progressão + magia (v0.8 Fase 1):** portão de orçamento de token da Groq (`groq_usage_daily`, bloqueio proativo antes do teto) protege tudo abaixo. Inteligência (4º atributo) e XP determinístico por rolagem, catálogo pequeno de magias com desbloqueio automático por limiar (`src/spells.js`, fonte SRD 5.1 CC-BY 4.0 — proveniência em `docs/MAGIAS-PROVENIENCIA.md`, crédito visível no rodapé do app).
 - **Tipografia:** Cinzel + EB Garamond + IM Fell English + IBM Plex Mono (Google Fonts).
 
 ## Estrutura
@@ -35,6 +36,7 @@ RPG solo narrativo conduzido por Mestre IA. Chat central, mapa de cenário, fich
 │   ├── assets/maps/*.png   # arte dos mapas (Kenney CC0 + terreno próprio)
 │   ├── classes.js          # 3 classes (Guerreiro/Ladina/Mágica), mwrpgBuildCharacter()
 │   ├── seeds.js            # ganchos de recomeço variado, mwrpgPickNextSeed()
+│   ├── spells.js           # catálogo de magias (v0.8), mwrpgSpellsUnlockedByInt()
 │   ├── acervo.js           # referências de domínio público (pickAcervoLore)
 │   ├── engine.js           # rolagem 2d6, bandas, ações de combate
 │   ├── master.js           # prompt do mestre + parser JSON + fallback em cadeia

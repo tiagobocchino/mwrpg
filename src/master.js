@@ -53,6 +53,10 @@ LOCAIS DISTANTES CURADOS — use estes dois em vez de inventar outro lugar quand
 - "ruinas-afogadas" ("Ruínas Afogadas") — as ruínas na maré baixa do gancho da quimera. Masmorra, sem mapa próprio: sempre "remoteArea": true enquanto o grupo estiver lá dentro.
 - "cripta-sob-capela" ("Cripta sob a Capela") — o corredor novo do gancho do minotauro. Mesma regra: "remoteArea": true lá dentro, "false" ao voltar pra capela.
 
+MAGIAS — quando o jogador escolher a ação "Magia" (em combate) ou tentar algo mágico fora de combate:
+- Use SOMENTE uma magia da lista "magias conhecidas do personagem" (contexto abaixo, quando houver). Nunca invente uma magia nova nem decida que o personagem sabe algo fora dessa lista.
+- Se a lista não aparecer ou estiver vazia, o personagem ainda não conhece magia nenhuma — narre a tentativa falhando ou o personagem recorrendo a outra coisa, nunca finja uma magia que não está registrada.
+
 Mantenha continuidade com o histórico.`;
 
   function buildMessages(history, latest) {
@@ -97,8 +101,26 @@ Mantenha continuidade com o histórico.`;
     return txt;
   }
 
-  function buildGroqMessages(history, latest, seed) {
-    let sys = SYSTEM_PROMPT + seedContext(seed);
+  // Magias conhecidas do personagem (v0.8 Fase 1, Assembleia 08, Seção
+  // 1.3) — reinjetado a cada turno, igual seedContext, mas com TETO fixo
+  // (8-10 nomes) porque esta lista só cresce ao longo da campanha e não
+  // tem limite natural como o resto do contexto (achado da Assembleia
+  // 08: é o primeiro pedaço de contexto deste projeto sem teto próprio).
+  // Manda só o NOME de cada magia, nunca a descrição/efeito completo —
+  // isso o código já resolve (src/spells.js), o mestre só precisa saber
+  // que a magia existe pra poder narrar o uso dela.
+  const KNOWN_SPELLS_CAP = 10;
+  function spellsContext(knownSpells) {
+    if (!knownSpells || !knownSpells.length) return '';
+    const names = knownSpells
+      .slice(-KNOWN_SPELLS_CAP)
+      .map(id => (window.mwrpgFindSpell && window.mwrpgFindSpell(id)) || { nome: id })
+      .map(s => s.nome);
+    return `\n\nMAGIAS CONHECIDAS DO PERSONAGEM (use só estas, nunca invente outra): ${names.join(', ')}.`;
+  }
+
+  function buildGroqMessages(history, latest, seed, knownSpells) {
+    let sys = SYSTEM_PROMPT + seedContext(seed) + spellsContext(knownSpells);
     const tags = guessAcervoTags(latest);
     const lore = window.pickAcervoLore ? window.pickAcervoLore(tags, 2) : [];
     if (lore.length) {
@@ -133,8 +155,8 @@ Mantenha continuidade com o histórico.`;
     return parseResponse(data.text);
   }
 
-  async function askGroq(history, latest, seed) {
-    return callGroq(buildGroqMessages(history, latest, seed));
+  async function askGroq(history, latest, seed, knownSpells) {
+    return callGroq(buildGroqMessages(history, latest, seed, knownSpells));
   }
 
   // Gera a abertura de uma campanha NOVA (recomeço) a partir de uma
@@ -169,10 +191,10 @@ Mantenha continuidade com o histórico.`;
     };
   }
 
-  async function ask(history, latest, seed) {
+  async function ask(history, latest, seed, knownSpells) {
     // 1) Groq via /api/master (produção real — precisa de GROQ_API_KEY no servidor)
     try {
-      return await askGroq(history, latest, seed);
+      return await askGroq(history, latest, seed, knownSpells);
     } catch (eGroq) {
       if (eGroq.quotaExceeded) {
         // Cota esgotada é um estado honesto, não "erro genérico" — não cai

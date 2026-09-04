@@ -89,5 +89,13 @@ window.MWRPG_CLOUD = (function () {
     return row;
   }
 
-  return { loadActiveSession, createSession, saveSession, loadCharacter, createCharacter };
+  // Grava o "data" jsonb inteiro do personagem (v0.8 Fase 1 — progressão:
+  // XP/Inteligência precisam sobreviver a reload/logout e a recomeço de
+  // campanha, diferente de HP/MP que hoje só vivem no estado da aba).
+  async function updateCharacter(characterId, data) {
+    const { error } = await charactersTable().update({ data }).eq('id', characterId);
+    if (error) throw error;
+  }
+
+  return { loadActiveSession, createSession, saveSession, loadCharacter, createCharacter, updateCharacter };
 })();

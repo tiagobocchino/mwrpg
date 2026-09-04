@@ -236,10 +236,13 @@ function Sheet({ char, isPlayer }) {
       </div>
       <div className="sheet-sub">{char.role}</div>
 
-      <div className="attrs">
+      <div className={`attrs ${isPlayer ? 'attrs-4' : ''}`}>
         <div className="attr"><div className="attr-label">CRP</div><div className="attr-value">{char.crp}</div></div>
         <div className="attr"><div className="attr-label">MNT</div><div className="attr-value">{char.mnt}</div></div>
         <div className="attr"><div className="attr-label">ALM</div><div className="attr-value">{char.alm}</div></div>
+        {isPlayer && (
+          <div className="attr"><div className="attr-label">INT</div><div className="attr-value">{char.int || 0}</div></div>
+        )}
       </div>
 
       <div className="bar">
@@ -254,6 +257,18 @@ function Sheet({ char, isPlayer }) {
       <div className="tags">
         {char.tags.map((t, i) => <span key={i} className={`tag ${isPlayer && i === char.tags.length-1 ? 'gold' : ''}`}>{t}</span>)}
       </div>
+
+      {isPlayer && char.knownSpells && char.knownSpells.length > 0 && (
+        <div className="sheet-spells">
+          <div className="sheet-sub">Magias conhecidas</div>
+          <div className="tags">
+            {char.knownSpells.map((spellId, i) => {
+              const sp = window.mwrpgFindSpell && window.mwrpgFindSpell(spellId);
+              return <span key={i} className="tag spell" title={sp ? sp.efeito : ''}>{sp ? sp.nome : spellId}</span>;
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

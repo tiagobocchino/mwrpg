@@ -66,6 +66,13 @@ function mwrpgBuildCharacter(name, classId, adjust) {
     hp: hpMax, hpMax,
     mp: mpMax, mpMax,
     crp: attrs.crp, mnt: attrs.mnt, alm: attrs.alm,
+    // Inteligência (v0.8 Fase 1, Assembleia 08) — atributo novo e
+    // separado de MNT, fora do orçamento de criação de 6 entre
+    // CRP/MNT/ALM (aprovado pelo Tiago: "exatamente como eu pensei").
+    // Todo personagem NOVO nasce com int=0/xp=0; sobe só por XP jogando.
+    int: 0,
+    xp: 0,
+    knownSpells: [],
     tags: cls.tags.slice()
   };
 }

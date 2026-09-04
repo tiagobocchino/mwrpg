@@ -432,7 +432,7 @@ zero, mesma disciplina de proveniência do resto do projeto:
   commit pronto localmente, precisa do Tiago rodar o push manual antes
   de testar em produção.
 
-### v0.8 — Portão de orçamento, progressão/magia, itens e raridades ⏳ Fase 0 implementada, aguardando SQL + push + teste
+### v0.8 — Portão de orçamento, progressão/magia, itens e raridades ⏳ Fase 0 validada em produção, Fase 1 implementada aguardando push + teste
 Assembleias 07 (`docs/ASSEMBLEIA-07-ITENS-E-RARIDADES.md`) e 08
 (`docs/ASSEMBLEIA-08-MAGIA-E-PROGRESSAO.md`), ambas aprovadas pelo
 Tiago. Três fases, nesta ordem — condição não-negociável do voto
@@ -466,26 +466,99 @@ portão de orçamento estar pronto e testado em produção.**
   leitura não derruba a chamada) — não dá pra testar o teto de verdade
   sem gastar 200k tokens reais, então a validação de produção é
   observar o contador crescer em uso normal, não forçar o bloqueio.
-- **Pendente**: rodar `supabase/schema.sql` de novo no SQL Editor
-  (idempotente, só adiciona `groq_usage_daily` + a função RPC) — sem
-  isso a leitura falha aberta e a proteção não roda de verdade, mesmo
-  com o código já no ar. Push também pendente (meu `git push` continua
-  falhando).
+- **✅ Validado em produção (04/09/2026)**: Tiago rodou o SQL, fez o
+  push, e uma chamada de teste direta a `/api/master` em produção
+  gravou uma linha real em `groq_usage_daily` (`tokens_used: 249,
+  requests_count: 1`) — confirmado por consulta dele no SQL Editor.
+  Mecanismo funcionando de ponta a ponta: condição não-negociável
+  cumprida, libera as Fases 1 e 2.
+- **Achado da validação**: 249 tokens numa chamada de teste minimalista
+  (prompt propositalmente curto) — mais alto que a estimativa informal
+  de 40-60 tokens feita antes de medir de verdade. Ainda não é
+  comparável ao custo real de um turno de jogo (que usa o
+  `SYSTEM_PROMPT` completo, ~600 tokens, mais histórico) — mas reforça
+  a disciplina de sempre medir, nunca estimar de cabeça, e vale
+  reconferir a conta de "quantas campanhas cabem por dia" com dado real
+  depois de alguns dias de uso normal.
 - **O que o Tiago vai conseguir ver**: nada de novo na tela — este
   mecanismo é infraestrutura invisível. A prova de que funciona é o
-  jogo continuar respondendo normalmente, e (depois de alguns dias)
-  dá pra consultar `select * from groq_usage_daily order by usage_date
-  desc` no SQL Editor pra ver o gasto real por dia.
+  jogo continuar respondendo normalmente, e dá pra consultar
+  `select * from groq_usage_daily order by usage_date desc` no SQL
+  Editor pra ver o gasto real por dia.
 
-**Fase 1 — fundação de progressão (Assembleia 08)**: Inteligência como
-4º atributo (aprovado pelo Tiago, separado de MNT, fora do orçamento de
-criação de 6 entre CRP/MNT/ALM, sobe só por XP) + XP/progressão +
-`src/spells.js` (catálogo pequeno, 10-15 magias, fonte SRD 5.1) +
-desbloqueio automático por limiar de INT. **Ainda não implementado.**
-Cuidado de migração já identificado (pedido do Tiago): personagens já
-criados (o dele + testadores externos) precisam ganhar INT sem quebrar
-— provavelmente `alter table characters ... add column` com default
-seguro, não decidido em detalhe ainda.
+**Fase 1 — fundação de progressão (Assembleia 08) — implementada,
+aguardando push + teste em produção:**
+- **Inteligência** (aprovado pelo Tiago — "exatamente como eu pensei":
+  4º atributo novo, separado de MNT, fora do orçamento de criação de 6
+  entre CRP/MNT/ALM) + **XP** — ambos vivem dentro do `data` jsonb do
+  personagem (`src/classes.js`), sem coluna nova no banco.
+- **XP é 100% determinístico**, sem sinal nenhum do mestre: cada
+  rolagem já calculada no cliente (`src/engine.js`) rende XP pela
+  própria banda — crítico +3, pleno +2, parcial +1, falha +0. Custo de
+  token **zero** pra esta parte, decisão deliberada dado o teto
+  apertado (Assembleia 08, achado central desta frente).
+- Inteligência sobe 1 ponto a cada 8 XP acumulados (`XP_PER_INT`,
+  número de partida não testado em mesa — Game System Designer pediu
+  catálogo pequeno justamente pra poder calibrar depois).
+- `src/spells.js`: catálogo de 12 magias (fonte SRD 5.1 CC-BY 4.0,
+  proveniência completa em `docs/MAGIAS-PROVENIENCIA.md`), cada uma com
+  limiar de INT pra desbloqueio automático. Cruzar um limiar novo
+  desbloqueia a(s) magia(s) correspondente(s) sozinho, sem o mestre
+  decidir nada — mesmo princípio do mapa/itens (registro de código,
+  LLM nunca inventa fora dele).
+- **Resumo de magias conhecidas reinjetado a cada turno com teto de 10
+  nomes** (`spellsContext` em `src/master.js`) — a lista real fica só
+  no personagem; o prompt nunca recebe mais que o teto, mesmo depois de
+  o personagem acumular muitas magias ao longo de uma campanha longa
+  (mitigação da Assembleia 08 pro primeiro contexto deste projeto sem
+  teto natural).
+- **Migração de personagem existente** (pedido explícito do Tiago —
+  ele + testadores externos já têm personagem salvo): **sem SQL
+  nenhum**. `int`/`xp`/`knownSpells` vivem dentro do jsonb já
+  flexível — personagem antigo simplesmente não tem essas chaves, e o
+  cliente aplica default (`withProgressionDefaults` em `src/app.jsx`)
+  em todo ponto de carregamento (login, continuar localStorage,
+  recomeço). No primeiro ganho de XP, os campos novos já são gravados
+  de volta no personagem — migração acontece sozinha, sem downtime,
+  sem `ALTER TABLE`.
+- **Custo em token medido** (contagem real do texto, tokenizador
+  `cl100k_base` como proxy — a Groq não expõe o tokenizador exato do
+  `gpt-oss-120b`, então isto é uma aproximação, não o número exato que
+  `usage.total_tokens` vai mostrar): a instrução fixa sobre magias no
+  `SYSTEM_PROMPT` custa **~140 tokens, todo turno**; o resumo de
+  magias conhecidas varia de **0 tokens** (personagem sem magia
+  nenhuma) até **~71 tokens** no teto de 10 nomes — nunca mais que
+  isso, não importa quantas magias o personagem acumule no total. Total
+  desta fase: **~140 a ~211 tokens/turno**, mesma ordem de grandeza da
+  adição de mapas (~80-130 tokens) da v0.7.
+- **Testado localmente**: fluxo completo via clique real na UI (não
+  simulação isolada) com `Math.random` forçado pra garantir críticos —
+  3 rolagens críticas seguidas acumularam XP, cruzaram o limiar de
+  INT=1, desbloquearam as 3 magias certas (Curar Ferimentos, Mãos
+  Flamejantes, Bênção), a ficha atualizou ao vivo, e a mensagem de
+  desbloqueio apareceu no chat — sem erro de console. Testado também
+  com um save "antigo" simulado (campos `int`/`xp`/`knownSpells`
+  removidos manualmente do `localStorage`) pra confirmar que a
+  migração não quebra personagem existente — carregou normal, sem
+  crash. Desktop e mobile (375px) verificados.
+- **Crédito CC-BY visível adicionado** (`.app-credits` em `src/app.jsx`/
+  `src/styles.css`) — primeira vez que conteúdo SRD 5.1 entra em
+  produção de verdade; a licença exige atribuição visível, não só um
+  doc interno (achado da Assembleia 08, Seção 1.6).
+- **O que o Tiago vai conseguir ver**: um 4º atributo "INT" na própria
+  ficha (só a sua, os NPCs não têm); depois de rolagens boas o
+  suficiente, uma mensagem no chat avisando que a Inteligência subiu e
+  quais magias foram desbloqueadas; a lista "Magias conhecidas"
+  aparecendo na ficha; e uma linha discreta de crédito no rodapé da
+  tela. O personagem dele (e dos testadores) continua funcionando
+  normalmente, começando do zero na progressão nova (INT=0, sem
+  magias) — não perde nada do que já tinha.
+- **Ainda não incluído nesta fase** (Assembleia 08, próximas frentes):
+  pergaminhos/grimórios (segunda via de aquisição de magia) e
+  encantamento aplicado por jogador — ambos dependem desta fundação já
+  estar rodando de verdade antes de calibrar.
+- **Push pendente** — meu `git push` continua falhando; commit pronto
+  localmente.
 
 **Fase 2 — itens e raridades (Assembleia 07)**: catálogo `src/items.js`
 (7 raridades: Comum→Raro→Mágico→Mítico→Épico→Lendário→Divino),

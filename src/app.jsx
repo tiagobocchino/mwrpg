@@ -18,6 +18,17 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "masterTone": "sage"
 }/*EDITMODE-END*/;
 
+// v0.8 Fase 1 — migração de personagem já existente (Assembleia 08,
+// pedido explícito do Tiago): personagens criados antes desta versão
+// (o dele + testadores externos) não têm int/xp/knownSpells no jsonb
+// salvo. Em vez de migração de banco (ALTER TABLE), o valor default
+// entra aqui, na leitura — não precisa de SQL nenhum pra personagem
+// antigo continuar funcionando, e o próximo ganho de XP já grava os
+// campos novos de volta no banco (applyXpGain -> updateCharacter).
+function withProgressionDefaults(data) {
+  return { xp: 0, int: 0, knownSpells: [], ...data };
+}
+
 function freshIntro() {
   const intro = window.MWRPG_DATA.scenario.intro;
   return {
@@ -147,9 +158,10 @@ function App() {
       try {
         const existing = await window.MWRPG_CLOUD.loadCharacter(session.user.id);
         if (existing) {
+          const migratedData = withProgressionDefaults(existing.data);
           characterId.current = existing.id;
-          characterBase.current = existing.data;
-          setPlayer(existing.data);
+          characterBase.current = migratedData;
+          setPlayer(migratedData);
           await bootstrapCampaign(session.user.id, existing.id);
         } else {
           setNeedsCharacter(true);
@@ -197,7 +209,7 @@ function App() {
     history.current = saved.history || [];
     setOptions(saved.options || []);
     setMode(saved.mode || 'dialog');
-    setPlayer(saved.player || window.MWRPG_DATA.player);
+    setPlayer(withProgressionDefaults(saved.player || window.MWRPG_DATA.player));
     setPartyAt(saved.partyAt || 'tavern');
     setMapScale('city');
     setCampaignSeed(saved.campaignSeed || null);
@@ -241,6 +253,46 @@ function App() {
     };
   }
 
+  // v0.8 Fase 1 — progressão (Assembleia 08): XP é 100% determinístico a
+  // partir da banda da própria rolagem (crit/win/mid/fail), sem sinal
+  // nenhum do mestre — custo de token zero pra esta parte. Quando a
+  // Inteligência cruza um limiar novo, desbloqueia a(s) magia(s)
+  // correspondente(s) (src/spells.js) e persiste no personagem — tanto
+  // em characterBase (pra sobreviver a um recomeço de campanha) quanto
+  // no banco (pra sobreviver a reload/logout).
+  const applyXpGain = useCB((band) => {
+    const gain = window.MWRPG_ENGINE.xpForBand(band);
+    if (!gain) return;
+    const oldXp = player.xp || 0;
+    const oldInt = window.MWRPG_ENGINE.intFromXp(oldXp);
+    const newXp = oldXp + gain;
+    const newInt = window.MWRPG_ENGINE.intFromXp(newXp);
+    const oldKnown = player.knownSpells || [];
+    let nextKnown = oldKnown;
+    let newlyUnlocked = [];
+    if (newInt > oldInt && window.mwrpgSpellsUnlockedByInt) {
+      newlyUnlocked = window.mwrpgSpellsUnlockedByInt(newInt)
+        .filter(s => s.intMin > oldInt && oldKnown.indexOf(s.id) === -1);
+      if (newlyUnlocked.length) nextKnown = [...oldKnown, ...newlyUnlocked.map(s => s.id)];
+    }
+    const nextData = { ...player, xp: newXp, int: newInt, knownSpells: nextKnown };
+    setPlayer(nextData);
+    if (characterBase.current) {
+      characterBase.current = { ...characterBase.current, xp: newXp, int: newInt, knownSpells: nextKnown };
+    }
+    if (characterId.current) {
+      window.MWRPG_CLOUD.updateCharacter(characterId.current, nextData)
+        .catch(e => console.error('cloudSync: falha ao salvar progressão', e));
+    }
+    if (newlyUnlocked.length) {
+      const names = newlyUnlocked.map(s => s.nome).join(', ');
+      setMessages(m => [...m, {
+        role: 'system',
+        content: `(Inteligência de ${player.name || 'seu personagem'} subiu para ${newInt} — desbloqueou: ${names}.)`
+      }]);
+    }
+  }, [player]);
+
   const handleChoose = useCB(async (option, idx) => {
     if (thinking || demoLocked) return;
     setCanContinue(false);
@@ -269,6 +321,7 @@ function App() {
         role: 'player',
         content: `[Rolagem ${option.attr || ''}: 2d6+${attrVal} = ${r.sum} (${r.label})]`
       });
+      applyXpGain(r.band);
     }
     setOptions([]);
     setThinking(true);
@@ -279,9 +332,9 @@ function App() {
       (rollLine ? ` Resultado: ${rollLine.label} (${rollLine.sum}). Incorpore o resultado na narração e adapte a cena.` : '') +
       ` Continue a história e ofereça ${mode === 'combat' ? 6 : '2 a 6'} novas opções.`;
 
-    const resp = await window.MWRPG_MASTER.ask(history.current, promptToMaster, campaignSeed);
+    const resp = await window.MWRPG_MASTER.ask(history.current, promptToMaster, campaignSeed, player.knownSpells);
     applyMasterResponse(resp);
-  }, [thinking, demoLocked, player, mode, tweaks.showDice, campaignSeed]);
+  }, [thinking, demoLocked, player, mode, tweaks.showDice, campaignSeed, applyXpGain]);
 
   const handleFree = useCB(async (text) => {
     if (thinking || demoLocked) return;
@@ -290,9 +343,9 @@ function App() {
     history.current.push({ role: 'player', content: text });
     setOptions([]);
     setThinking(true);
-    const resp = await window.MWRPG_MASTER.ask(history.current, `O jogador descreve livremente: "${text}". Reaja e ofereça novas opções.`, campaignSeed);
+    const resp = await window.MWRPG_MASTER.ask(history.current, `O jogador descreve livremente: "${text}". Reaja e ofereça novas opções.`, campaignSeed, player.knownSpells);
     applyMasterResponse(resp);
-  }, [thinking, demoLocked, campaignSeed]);
+  }, [thinking, demoLocked, campaignSeed, player]);
 
   function applyMasterResponse(resp) {
     setMessages(m => [...m, { role: 'master', content: resp.narration }]);
@@ -411,7 +464,7 @@ function App() {
     setOptions(opening.options);
     setMode(opening.mode);
     history.current = opening.history;
-    setPlayer(characterBase.current || window.MWRPG_DATA.player);
+    setPlayer(withProgressionDefaults(characterBase.current || window.MWRPG_DATA.player));
     setPartyAt(opening.partyAt);
     setMapScale('city');
     setCampaignSeed(newSeed);
@@ -486,6 +539,10 @@ function App() {
       <div className="col col-right">
         <Sheet char={npcs[1]} />
         <Sheet char={npcs[2]} />
+      </div>
+
+      <div className="app-credits">
+        Magias inspiradas no D&amp;D 5e SRD 5.1 (CC-BY 4.0) — nomes e conceitos reaproveitados sob licença aberta, textos de efeito reescritos para este jogo.
       </div>
 
       <DiceOverlay rolling={rolling} onDone={() => {}} />

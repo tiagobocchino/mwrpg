@@ -67,6 +67,23 @@ button, input, textarea, select { font: inherit; color: inherit; }
   gap: 14px;
   padding: 14px;
 }
+/* v0.8 Fase 1 — primeira vez que conteúdo SRD 5.1 (magias) entra em
+   produção; CC-BY 4.0 exige atribuição visível, não só um doc interno
+   (achado da Assembleia 08, Seção 1.6). Fixo e discreto de propósito —
+   não é o ponto principal da tela, mas precisa estar sempre visível,
+   não escondido atrás de um clique. */
+.app-credits {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.02em;
+  color: var(--ink-mute);
+  background: color-mix(in oklab, var(--paper) 88%, transparent);
+  padding: 3px 8px;
+  z-index: 5;
+}
 .topbar {
   grid-column: 1 / -1;
   display: flex;
@@ -409,6 +426,9 @@ button, input, textarea, select { font: inherit; color: inherit; }
   gap: 6px;
   margin: 10px 0;
 }
+/* v0.8 Fase 1 — Inteligência aparece só na ficha do jogador (NPCs não
+   têm o atributo novo), então o grid vira 4 colunas só nesse caso. */
+.attrs.attrs-4 { grid-template-columns: repeat(4, 1fr); }
 .attr {
   text-align: center;
   border: 1px solid var(--paper-edge);
@@ -459,6 +479,11 @@ button, input, textarea, select { font: inherit; color: inherit; }
   border: 1px solid color-mix(in oklab, var(--ink) 10%, transparent);
 }
 .tag.gold { color: var(--seal); border-color: color-mix(in oklab, var(--seal) 30%, transparent); background: color-mix(in oklab, var(--seal) 8%, transparent); }
+/* v0.8 Fase 1 — magias conhecidas usam a cor do foco/mana (--azure), pra
+   ficar visualmente ligado à barra de Foco, não confundir com tags comuns. */
+.tag.spell { color: var(--azure); border-color: color-mix(in oklab, var(--azure) 30%, transparent); background: color-mix(in oklab, var(--azure) 8%, transparent); }
+
+.sheet-spells { margin-top: 6px; }
 
 .divider {
   height: 1px; margin: 12px 0;
