@@ -62,3 +62,26 @@ create trigger set_updated_at before update on public.characters
 drop trigger if exists set_updated_at on public.campaign_sessions;
 create trigger set_updated_at before update on public.campaign_sessions
   for each row execute function public.set_updated_at();
+
+-- ============================================================
+-- v0.6 — sistema de classes + recomeço com história variada
+-- (Assembleia 05, docs/ASSEMBLEIA-05-CLASSES-E-RECOMECO-VARIADO.md)
+-- Seguro rodar de novo: tudo abaixo é idempotente (if not exists /
+-- drop if exists antes de criar), igual ao resto deste arquivo.
+-- ============================================================
+
+-- Nome de personagem é único GLOBALMENTE (decisão do Tiago, não por
+-- jogador nem por cenário) — comparação sem diferenciar maiúsculas
+-- pra "Aragorn" e "aragorn" não coexistirem por acidente. Índice único
+-- funcional em vez de UNIQUE(name) direto porque o Postgres não aceita
+-- UNIQUE sobre uma expressão (lower(name)) na própria definição da coluna.
+create unique index if not exists characters_name_unique_ci
+  on public.characters (lower(name));
+
+-- Semente narrativa da campanha (Frente B da Assembleia 05) — gancho,
+-- entrada do acervo usada como inspiração, quem fala primeiro, clima.
+-- Gerada uma vez no início/recomeço da campanha e reenviada ao mestre
+-- a cada turno (src/master.js) pra situações ao longo da campanha
+-- também variarem, não só a abertura.
+alter table public.campaign_sessions
+  add column if not exists seed jsonb;

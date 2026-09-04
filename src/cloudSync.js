@@ -1,16 +1,18 @@
-// === PERSISTÊNCIA EM NUVEM (v0.4) ===
-// window.MWRPG_CLOUD — CRUD simples de campaign_sessions no Supabase.
-// Só funciona com usuário logado (RLS exige auth.uid() = user_id).
+// === PERSISTÊNCIA EM NUVEM (v0.4 campanha, v0.6 personagem) ===
+// window.MWRPG_CLOUD — CRUD de campaign_sessions e characters no
+// Supabase. Só funciona com usuário logado (RLS exige auth.uid() = user_id).
 window.MWRPG_CLOUD = (function () {
-  function table() {
-    const client = window.MWRPG_AUTH.getClient();
-    if (!client) throw new Error('cliente Supabase não inicializado');
-    return client.from('campaign_sessions');
+  function client() {
+    const c = window.MWRPG_AUTH.getClient();
+    if (!c) throw new Error('cliente Supabase não inicializado');
+    return c;
   }
+  function sessionsTable() { return client().from('campaign_sessions'); }
+  function charactersTable() { return client().from('characters'); }
 
   // Retorna a campanha ativa mais recente do usuário, ou null.
   async function loadActiveSession(userId) {
-    const { data, error } = await table()
+    const { data, error } = await sessionsTable()
       .select('*')
       .eq('user_id', userId)
       .eq('status', 'active')
@@ -21,16 +23,20 @@ window.MWRPG_CLOUD = (function () {
     return data;
   }
 
-  async function createSession(userId, initial) {
-    const { data, error } = await table()
+  // characterId e seed são opcionais — mantém compatibilidade com
+  // quem ainda não tem personagem/semente (degradação graciosa).
+  async function createSession(userId, initial, characterId, seed) {
+    const { data, error } = await sessionsTable()
       .insert({
         user_id: userId,
+        character_id: characterId || null,
         scenario_id: 'ys',
         messages: initial.messages,
         history: initial.history,
         options: initial.options,
         mode: initial.mode,
         party_at: initial.partyAt,
+        seed: seed || null,
         turn_count: 0
       })
       .select()
@@ -40,9 +46,44 @@ window.MWRPG_CLOUD = (function () {
   }
 
   async function saveSession(sessionId, patch) {
-    const { error } = await table().update(patch).eq('id', sessionId);
+    const { error } = await sessionsTable().update(patch).eq('id', sessionId);
     if (error) throw error;
   }
 
-  return { loadActiveSession, createSession, saveSession };
+  // --- Personagem (v0.6) ---------------------------------------------
+
+  // Um personagem por conta, hoje (sem escolha entre vários salvos).
+  async function loadCharacter(userId) {
+    const { data, error } = await charactersTable()
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  }
+
+  // Nome é único GLOBALMENTE (índice único case-insensitive no banco,
+  // supabase/schema.sql) — a corrida entre dois jogadores salvando o
+  // mesmo nome ao mesmo tempo é resolvida pelo próprio Postgres, não
+  // por uma checagem prévia daqui (evita condição de corrida — ver
+  // docs/ASSEMBLEIA-05-CLASSES-E-RECOMECO-VARIADO.md, Frente A).
+  async function createCharacter(userId, name, data) {
+    const { data: row, error } = await charactersTable()
+      .insert({ user_id: userId, name, data })
+      .select()
+      .single();
+    if (error) {
+      if (error.code === '23505') {
+        const friendly = new Error('Esse nome já foi escolhido por outro jogador — tente outro.');
+        friendly.nameTaken = true;
+        throw friendly;
+      }
+      throw error;
+    }
+    return row;
+  }
+
+  return { loadActiveSession, createSession, saveSession, loadCharacter, createCharacter };
 })();

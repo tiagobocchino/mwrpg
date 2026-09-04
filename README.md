@@ -2,7 +2,7 @@
 
 **Produção:** [mwrpg-one.vercel.app](https://mwrpg-one.vercel.app/)
 
-RPG solo narrativo conduzido por Mestre IA. Chat central, mapa de cenário, ficha do jogador + 3 NPCs companheiros. Sistema próprio **D6 das Três Letras** (CRP/MNT/ALM, 2d6 + atributo). Login por link mágico + progresso salvo em nuvem (Supabase) quando configurado; localStorage como fallback. **Versão demo: cada campanha vai até 40 rodadas.**
+RPG solo narrativo conduzido por Mestre IA. Chat central, mapa de cenário, ficha do jogador + 3 NPCs companheiros. Sistema próprio **D6 das Três Letras** (CRP/MNT/ALM, 2d6 + atributo). Login por link mágico + progresso salvo em nuvem (Supabase) quando configurado; localStorage como fallback. Personagem com 3 classes (Guerreiro/Ladina/Mágica) e nome único globalmente. Recomeço de campanha gera uma história de verdade diferente, não repete a mesma abertura. **Versão demo: cada campanha vai até 40 rodadas.**
 
 > Cenário inicial: lenda bretã de Ys, fantasia low-magic. Fontes em domínio público (SRD 5.1 CC-BY 4.0, Project Gutenberg, Sacred Texts).
 
@@ -13,6 +13,7 @@ RPG solo narrativo conduzido por Mestre IA. Chat central, mapa de cenário, fich
 - **Login + persistência:** Supabase Auth (link mágico) + Postgres (`campaign_sessions`, `characters`), via `src/auth.js` + `src/cloudSync.js` + `api/config.js`. Sem Supabase configurado, o jogo funciona sem login (localStorage).
 - **Acervo:** referências curadas de domínio público (fábulas, mitologia, folclore) em `src/acervo.js`, com proveniência em `docs/ACERVO-PROVENIENCIA.md`.
 - **Mapas:** Leaflet.js (`CRS.Simple`, mapa em pixel) + arte CC0 do Kenney "RPG Base" — cidade (5 locais) e 3 interiores navegáveis, mestre decide quando entrar/sair via `mapHint.enterInterior`. `src/maps.js` + `docs/MAPAS-PROVENIENCIA.md`.
+- **Classes + recomeço variado (v0.6):** 3 classes mapeadas nos atributos (`src/classes.js`), nome de personagem único globalmente (índice no banco + erro traduzido com sugestão). Recomeço sorteia uma semente narrativa (`src/seeds.js`) e pede ao mestre uma abertura de verdade nova, reenviada a cada turno pra situações também variarem — não só a primeira mensagem.
 - **Tipografia:** Cinzel + EB Garamond + IM Fell English + IBM Plex Mono (Google Fonts).
 
 ## Estrutura
@@ -32,13 +33,15 @@ RPG solo narrativo conduzido por Mestre IA. Chat central, mapa de cenário, fich
 │   ├── data.js             # cenário, jogador, NPCs, mapa
 │   ├── maps.js             # mapas Leaflet (cidade + interiores), mwrpgHasInterior()
 │   ├── assets/maps/*.png   # arte dos mapas (Kenney CC0 + terreno próprio)
+│   ├── classes.js          # 3 classes (Guerreiro/Ladina/Mágica), mwrpgBuildCharacter()
+│   ├── seeds.js            # ganchos de recomeço variado, mwrpgPickNextSeed()
 │   ├── acervo.js           # referências de domínio público (pickAcervoLore)
 │   ├── engine.js           # rolagem 2d6, bandas, ações de combate
 │   ├── master.js           # prompt do mestre + parser JSON + fallback em cadeia
 │   ├── storage.js          # persistência local (localStorage) — fallback sem login
 │   ├── auth.js             # login por link mágico (Supabase Auth)
 │   ├── cloudSync.js        # CRUD de campaign_sessions no Supabase
-│   ├── components.jsx      # Chat, MapPanel (Leaflet), Sheet, Dice, Topbar, LoginGate
+│   ├── components.jsx      # Chat, MapPanel (Leaflet), Sheet, Dice, Topbar, LoginGate, CharacterCreationGate
 │   ├── app.jsx             # estado, fluxo de turno, login gate, limite de demo, mapScale
 │   └── tweaks-panel.jsx    # painel de tweaks
 ├── Relatorio_Pesquisa_RPG.md   # pesquisa fundadora

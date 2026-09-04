@@ -72,8 +72,20 @@ Mantenha continuidade com o histórico.`;
     return Object.keys(allTags).filter(t => text.indexOf(t) !== -1);
   }
 
-  function buildGroqMessages(history, latest) {
-    let sys = SYSTEM_PROMPT;
+  // Semente da campanha (Assembleia 05, Frente B) — injetada em toda
+  // chamada da campanha, não só na abertura, pra situações ao longo
+  // dos turnos também carregarem o mesmo gancho/ambientação, não só a
+  // primeira mensagem. Custo: só algumas dezenas de tokens por turno.
+  function seedContext(seed) {
+    if (!seed) return '';
+    let txt = `\n\nCONTEXTO DESTA CAMPANHA (mantenha consistência com isto ao longo de toda a história):\n- Gancho: ${seed.ganchoTexto}`;
+    if (seed.quemFalaPrimeiroLabel) txt += `\n- Quem tende a puxar a conversa: ${seed.quemFalaPrimeiroLabel}`;
+    if (seed.clima) txt += `\n- Ambientação sensorial: ${seed.clima}`;
+    return txt;
+  }
+
+  function buildGroqMessages(history, latest, seed) {
+    let sys = SYSTEM_PROMPT + seedContext(seed);
     const tags = guessAcervoTags(latest);
     const lore = window.pickAcervoLore ? window.pickAcervoLore(tags, 2) : [];
     if (lore.length) {
@@ -89,11 +101,11 @@ Mantenha continuidade com o histórico.`;
     return msgs;
   }
 
-  async function askGroq(history, latest) {
+  async function callGroq(messages) {
     const res = await fetch('/api/master', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: buildGroqMessages(history, latest) })
+      body: JSON.stringify({ messages })
     });
     if (res.status === 429) {
       const body = await res.json().catch(() => ({}));
@@ -108,6 +120,31 @@ Mantenha continuidade com o histórico.`;
     return parseResponse(data.text);
   }
 
+  async function askGroq(history, latest, seed) {
+    return callGroq(buildGroqMessages(history, latest, seed));
+  }
+
+  // Gera a abertura de uma campanha NOVA (recomeço) a partir de uma
+  // semente (src/seeds.js) — uma chamada só, sem histórico. Se falhar
+  // por qualquer motivo (offline, cota, erro), quem chamou decide o
+  // fallback (ver handleReset em app.jsx — cai pro texto fixo original).
+  async function generateVariedIntro(seed) {
+    const acervoEntry = (window.MWRPG_ACERVO && seed && seed.acervoId)
+      ? window.MWRPG_ACERVO.entries.find(e => e.id === seed.acervoId)
+      : null;
+    let instrucao = 'Gere a ABERTURA de uma campanha NOVA neste mesmo cenário e grupo — não é continuação de nada, é o primeiro momento da história. ' +
+      'Não presuma nenhuma escolha do jogador ainda, não inclua rollResult. Ofereça de 2 a 4 opções iniciais.' +
+      seedContext(seed);
+    if (acervoEntry) {
+      instrucao += `\n\nInspire-se livremente nisto pro gancho (não copie o texto, adapte pra esta campanha): ${acervoEntry.titulo} — ${acervoEntry.resumoJogavel}`;
+    }
+    const messages = [
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: instrucao }
+    ];
+    return callGroq(messages);
+  }
+
   function quotaExceededResponse() {
     return {
       narration:
@@ -119,10 +156,10 @@ Mantenha continuidade com o histórico.`;
     };
   }
 
-  async function ask(history, latest) {
+  async function ask(history, latest, seed) {
     // 1) Groq via /api/master (produção real — precisa de GROQ_API_KEY no servidor)
     try {
-      return await askGroq(history, latest);
+      return await askGroq(history, latest, seed);
     } catch (eGroq) {
       if (eGroq.quotaExceeded) {
         // Cota esgotada é um estado honesto, não "erro genérico" — não cai
@@ -201,5 +238,5 @@ Mantenha continuidade com o histórico.`;
     };
   }
 
-  return { ask, SYSTEM_PROMPT };
+  return { ask, generateVariedIntro, SYSTEM_PROMPT };
 })();

@@ -5,7 +5,7 @@ const TweaksPanel = window.TweaksPanel;
 const TweakSection = window.TweakSection;
 const TweakToggle = window.TweakToggle;
 const TweakRadio = window.TweakRadio;
-const { Chat, MapPanel, Sheet, DiceOverlay, Topbar, LoginGate, SetPasswordGate } = window;
+const { Chat, MapPanel, Sheet, DiceOverlay, Topbar, LoginGate, SetPasswordGate, CharacterCreationGate } = window;
 
 const DEMO_LIMIT = 40;
 
@@ -50,6 +50,16 @@ function App() {
   const [demoLocked, setDemoLocked] = useS(false);
   const history = useR(init.history);
 
+  // v0.6 — personagem (classe + nome único) e semente de campanha
+  // (recomeço com história variada). Ver Assembleia 05.
+  const [needsCharacter, setNeedsCharacter] = useS(false);
+  const [characterChecking, setCharacterChecking] = useS(true);
+  const [campaignSeed, setCampaignSeed] = useS(null);
+  const [resetting, setResetting] = useS(false);
+  const characterId = useR(null);
+  const characterBase = useR(null); // ficha "pristina" da classe, usada no recomeço
+  const characterChecked = useR(false);
+
   // v0.4 — login (link mágico). authRequired só vira true se /api/config
   // responder com sucesso (Supabase configurado); senão o jogo segue sem
   // login, como sempre funcionou.
@@ -88,32 +98,66 @@ function App() {
     return () => unsub();
   }, []);
 
-  // hidrata/cria a campanha em nuvem assim que a sessão aparece
+  // hidrata/cria a campanha em nuvem — só depois que o personagem
+  // (classe + nome) já existe, senão a campanha nasceria sem dono.
   const cloudReady = useR(false);
-  useE(() => {
-    if (!session || cloudReady.current) return;
+  async function bootstrapCampaign(userId, charId) {
+    if (cloudReady.current) return;
     cloudReady.current = true;
+    try {
+      const existing = await window.MWRPG_CLOUD.loadActiveSession(userId);
+      if (existing) {
+        cloudSessionId.current = existing.id;
+        setMessages(existing.messages && existing.messages.length ? existing.messages : init.messages);
+        history.current = existing.history && existing.history.length ? existing.history : init.history;
+        setOptions(existing.options || []);
+        setMode(existing.mode || 'dialog');
+        setPartyAt(existing.party_at || 'tavern');
+        setMapScale('city');
+        setTurnCount(existing.turn_count || 0);
+        setDemoLocked(existing.status === 'demo_limit_reached');
+        setCampaignSeed(existing.seed || null);
+      } else {
+        const created = await window.MWRPG_CLOUD.createSession(userId, init, charId, null);
+        cloudSessionId.current = created.id;
+      }
+    } catch (e) {
+      console.error('cloudSync: falha ao carregar/criar campanha', e);
+    }
+  }
+
+  // v0.6 — carrega o personagem do jogador assim que a sessão aparece;
+  // se não existir nenhum ainda, pede pra criar antes de qualquer campanha.
+  useE(() => {
+    if (!session || characterChecked.current) return;
+    characterChecked.current = true;
     (async () => {
       try {
-        const existing = await window.MWRPG_CLOUD.loadActiveSession(session.user.id);
+        const existing = await window.MWRPG_CLOUD.loadCharacter(session.user.id);
         if (existing) {
-          cloudSessionId.current = existing.id;
-          setMessages(existing.messages && existing.messages.length ? existing.messages : init.messages);
-          history.current = existing.history && existing.history.length ? existing.history : init.history;
-          setOptions(existing.options || []);
-          setMode(existing.mode || 'dialog');
-          setPartyAt(existing.party_at || 'tavern');
-          setMapScale('city');
-          setTurnCount(existing.turn_count || 0);
-          setDemoLocked(existing.status === 'demo_limit_reached');
+          characterId.current = existing.id;
+          characterBase.current = existing.data;
+          setPlayer(existing.data);
+          await bootstrapCampaign(session.user.id, existing.id);
         } else {
-          const created = await window.MWRPG_CLOUD.createSession(session.user.id, init);
-          cloudSessionId.current = created.id;
+          setNeedsCharacter(true);
         }
       } catch (e) {
-        console.error('cloudSync: falha ao carregar/criar campanha', e);
+        console.error('cloudSync: falha ao carregar personagem', e);
+      } finally {
+        setCharacterChecking(false);
       }
     })();
+  }, [session]);
+
+  const handleCreateCharacter = useCB(async (name, classId, adjust) => {
+    const data = window.mwrpgBuildCharacter(name, classId, adjust);
+    const row = await window.MWRPG_CLOUD.createCharacter(session.user.id, name, data);
+    characterId.current = row.id;
+    characterBase.current = row.data;
+    setPlayer(row.data);
+    setNeedsCharacter(false);
+    await bootstrapCampaign(session.user.id, row.id);
   }, [session]);
 
   // tema via data-attr
@@ -126,12 +170,13 @@ function App() {
     if (cloudSessionId.current) {
       window.MWRPG_CLOUD.saveSession(cloudSessionId.current, {
         messages, history: history.current, options, mode, party_at: partyAt,
-        turn_count: turnCount, status: demoLocked ? 'demo_limit_reached' : 'active'
+        turn_count: turnCount, status: demoLocked ? 'demo_limit_reached' : 'active',
+        seed: campaignSeed
       }).catch(e => console.error('cloudSync: falha ao salvar', e));
     } else if (!authRequired) {
-      window.MWRPG_STORAGE.save({ messages, history: history.current, options, mode, player, partyAt });
+      window.MWRPG_STORAGE.save({ messages, history: history.current, options, mode, player, partyAt, campaignSeed });
     }
-  }, [messages, options, mode, player, partyAt, turnCount, demoLocked]);
+  }, [messages, options, mode, player, partyAt, turnCount, demoLocked, campaignSeed]);
 
   const handleContinue = useCB(() => {
     const saved = window.MWRPG_STORAGE.load();
@@ -143,6 +188,7 @@ function App() {
     setPlayer(saved.player || window.MWRPG_DATA.player);
     setPartyAt(saved.partyAt || 'tavern');
     setMapScale('city');
+    setCampaignSeed(saved.campaignSeed || null);
     setCanContinue(false);
   }, []);
 
@@ -217,9 +263,9 @@ function App() {
       (rollLine ? ` Resultado: ${rollLine.label} (${rollLine.sum}). Incorpore o resultado na narração e adapte a cena.` : '') +
       ` Continue a história e ofereça ${mode === 'combat' ? 6 : '2 a 6'} novas opções.`;
 
-    const resp = await window.MWRPG_MASTER.ask(history.current, promptToMaster);
+    const resp = await window.MWRPG_MASTER.ask(history.current, promptToMaster, campaignSeed);
     applyMasterResponse(resp);
-  }, [thinking, demoLocked, player, mode, tweaks.showDice]);
+  }, [thinking, demoLocked, player, mode, tweaks.showDice, campaignSeed]);
 
   const handleFree = useCB(async (text) => {
     if (thinking || demoLocked) return;
@@ -228,9 +274,9 @@ function App() {
     history.current.push({ role: 'player', content: text });
     setOptions([]);
     setThinking(true);
-    const resp = await window.MWRPG_MASTER.ask(history.current, `O jogador descreve livremente: "${text}". Reaja e ofereça novas opções.`);
+    const resp = await window.MWRPG_MASTER.ask(history.current, `O jogador descreve livremente: "${text}". Reaja e ofereça novas opções.`, campaignSeed);
     applyMasterResponse(resp);
-  }, [thinking, demoLocked]);
+  }, [thinking, demoLocked, campaignSeed]);
 
   function applyMasterResponse(resp) {
     setMessages(m => [...m, { role: 'master', content: resp.narration }]);
@@ -295,26 +341,55 @@ function App() {
     setThinking(false);
   }
 
-  function handleReset() {
+  // v0.6 — recomeço com história variada (Assembleia 05, Frente B):
+  // sorteia uma semente nova (sem repetir a última, src/seeds.js) e
+  // pede ao mestre uma abertura de verdade diferente, não o mesmo
+  // texto fixo de sempre. Se a geração falhar por qualquer motivo
+  // (offline, cota estourada), cai pro texto original — nunca trava.
+  async function handleReset() {
     if (!confirm('Recomeçar a campanha? O progresso atual será perdido.')) return;
-    const fresh = freshIntro();
-    setMessages(fresh.messages);
-    setOptions(fresh.options);
-    setMode(fresh.mode);
-    history.current = fresh.history;
-    setPlayer(window.MWRPG_DATA.player);
-    setPartyAt(fresh.partyAt);
+    setResetting(true);
+
+    let newSeed = window.mwrpgPickNextSeed ? window.mwrpgPickNextSeed() : null;
+    let opening;
+    try {
+      if (newSeed) {
+        const resp = await window.MWRPG_MASTER.generateVariedIntro(newSeed);
+        opening = {
+          messages: [{ role: 'master', content: resp.narration }],
+          history: [{ role: 'master', content: resp.narration }],
+          options: resp.options,
+          mode: resp.mode || 'dialog',
+          partyAt: 'tavern'
+        };
+      } else {
+        opening = freshIntro();
+      }
+    } catch (e) {
+      console.error('handleReset: falha ao gerar abertura variada, usando texto padrão', e);
+      opening = freshIntro();
+      newSeed = null; // não persiste semente de uma abertura que não foi gerada
+    }
+
+    setMessages(opening.messages);
+    setOptions(opening.options);
+    setMode(opening.mode);
+    history.current = opening.history;
+    setPlayer(characterBase.current || window.MWRPG_DATA.player);
+    setPartyAt(opening.partyAt);
     setMapScale('city');
+    setCampaignSeed(newSeed);
     setCanContinue(false);
     setTurnCount(0);
     setDemoLocked(false);
+    setResetting(false);
     window.MWRPG_STORAGE.clear();
 
     if (session && cloudSessionId.current) {
       const oldId = cloudSessionId.current;
       window.MWRPG_CLOUD.saveSession(oldId, { status: 'finished' }).catch(() => {});
       cloudSessionId.current = null;
-      window.MWRPG_CLOUD.createSession(session.user.id, fresh)
+      window.MWRPG_CLOUD.createSession(session.user.id, opening, characterId.current, newSeed)
         .then(created => { cloudSessionId.current = created.id; })
         .catch(e => console.error('cloudSync: falha ao criar nova campanha', e));
     }
@@ -325,12 +400,17 @@ function App() {
   if (authRequired && !session) {
     return <LoginGate onSignIn={handleSignIn} onSignInPassword={handleSignInPassword} initialError={authInitialError} />;
   }
+  if (authRequired && session && characterChecking) return null;
+  if (authRequired && session && needsCharacter) {
+    return <CharacterCreationGate onCreate={handleCreateCharacter} />;
+  }
 
   return (
     <div className="app" data-screen-label="MWRPG — A Coroa Enterrada de Ys">
       <Topbar
         scenarioTitle={window.MWRPG_DATA.scenario.title}
         onReset={handleReset}
+        resetting={resetting}
         canContinue={canContinue}
         onContinue={handleContinue}
         demoInfo={{ turnCount: Math.min(turnCount, DEMO_LIMIT), demoLimit: DEMO_LIMIT }}

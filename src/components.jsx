@@ -280,7 +280,7 @@ function DiceOverlay({ rolling, onDone }) {
 // ============================================================
 // TOPBAR
 // ============================================================
-function Topbar({ scenarioTitle, onReset, canContinue, onContinue, demoInfo, onSignOut }) {
+function Topbar({ scenarioTitle, onReset, resetting, canContinue, onContinue, demoInfo, onSignOut }) {
   return (
     <div className="topbar">
       <div className="brand">
@@ -298,7 +298,7 @@ function Topbar({ scenarioTitle, onReset, canContinue, onContinue, demoInfo, onS
         )}
         <span className="meta">D6 das Três Letras</span>
         {canContinue && <button className="btn" onClick={onContinue}>Continuar</button>}
-        <button className="btn btn-ghost" onClick={onReset}>Recomeçar</button>
+        <button className="btn btn-ghost" onClick={onReset} disabled={resetting}>{resetting ? 'Recomeçando…' : 'Recomeçar'}</button>
         {onSignOut && <button className="btn btn-ghost" onClick={onSignOut}>Sair</button>}
       </div>
     </div>
@@ -491,4 +491,130 @@ function SetPasswordGate({ onSetPassword, onSkip }) {
   );
 }
 
-Object.assign(window, { Chat, MapPanel, Sheet, DiceOverlay, Topbar, LoginGate, SetPasswordGate });
+// ============================================================
+// CRIAÇÃO DE PERSONAGEM (v0.6 — classes + nome único globalmente)
+// ============================================================
+function normalizeCharName(raw) {
+  return String(raw || '').trim().replace(/\s+/g, ' ');
+}
+const CHAR_NAME_RE = /^[\p{L}\p{M}'’\- ]{2,24}$/u;
+
+function CharacterCreationGate({ onCreate }) {
+  const classes = window.MWRPG_CLASSES.list;
+  const [classId, setClassId] = useState(classes[0].id);
+  const [adjust, setAdjust] = useState(null); // null | attr id
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const [suggestions, setSuggestions] = useState(null);
+
+  const cls = classes.find(c => c.id === classId);
+  const preview = window.mwrpgBuildCharacter(name || '…', classId, adjust);
+
+  function nameError(n) {
+    if (!n) return 'Escreva um nome pro seu personagem.';
+    if (!CHAR_NAME_RE.test(n)) return 'Nome precisa ter entre 2 e 24 letras (acentos, espaço, apóstrofo e hífen valem).';
+    return null;
+  }
+
+  async function submit(e) {
+    e.preventDefault();
+    if (busy) return;
+    const clean = normalizeCharName(name);
+    const nameErr = nameError(clean);
+    if (nameErr) { setError(nameErr); setSuggestions(null); return; }
+    setBusy(true);
+    setError(null);
+    setSuggestions(null);
+    try {
+      await onCreate(clean, classId, adjust);
+    } catch (err) {
+      setError(err.message || 'Não foi possível criar o personagem agora.');
+      if (err.nameTaken) {
+        setSuggestions([`${clean} de Ys`, `${clean}, o Marcado`, `${clean} II`]);
+      }
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="login-gate">
+      <div className="parchment login-card char-gate-card pop-in">
+        <div className="section-title"><span>Quem é você em Ys?</span></div>
+        <p className="login-copy">
+          Escolha uma classe e um nome — esse personagem será seu, e o
+          nome precisa ser único entre todos os jogadores.
+        </p>
+
+        <div className="class-cards">
+          {classes.map(c => (
+            <button
+              type="button"
+              key={c.id}
+              className={'class-card' + (c.id === classId ? ' selected' : '')}
+              onClick={() => { setClassId(c.id); setAdjust(null); }}
+              disabled={busy}
+            >
+              <span className="class-card-name">{c.nome}</span>
+              <span className="class-card-desc">{c.resumo}</span>
+              <span className="class-card-stats">
+                CRP {c.crp} · MNT {c.mnt} · ALM {c.alm}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {cls && cls.ajustavel && (
+          <div className="adjust-row">
+            <span>Ajuste fino:</span>
+            <label>
+              <input type="radio" name="adjust" checked={adjust === null} onChange={() => setAdjust(null)} disabled={busy} />
+              padrão
+            </label>
+            <label>
+              <input type="radio" name="adjust" checked={adjust === cls.ajustavel[0]} onChange={() => setAdjust(cls.ajustavel[0])} disabled={busy} />
+              +1 {cls.ajustavel[0].toUpperCase()}
+            </label>
+            <label>
+              <input type="radio" name="adjust" checked={adjust === cls.ajustavel[1]} onChange={() => setAdjust(cls.ajustavel[1])} disabled={busy} />
+              +1 {cls.ajustavel[1].toUpperCase()}
+            </label>
+          </div>
+        )}
+
+        <form onSubmit={submit} className="login-form">
+          <input
+            type="text"
+            required
+            maxLength={24}
+            placeholder="Nome do personagem"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            disabled={busy}
+          />
+          <button className="btn" type="submit" disabled={busy}>
+            {busy ? 'Criando…' : `Começar como ${cls ? cls.nome.toLowerCase() : ''}`}
+          </button>
+        </form>
+
+        {error && <p className="login-error">{error}</p>}
+        {suggestions && (
+          <div className="name-suggestions">
+            <span>Que tal:</span>
+            {suggestions.map((s, i) => (
+              <button type="button" key={i} className="btn btn-ghost name-suggestion-btn" onClick={() => { setName(s); setError(null); setSuggestions(null); }}>
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <p className="login-copy" style={{ marginTop: 16, fontSize: 12 }}>
+          Prévia — Vida {preview.hpMax} · Foco {preview.mpMax}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { Chat, MapPanel, Sheet, DiceOverlay, Topbar, LoginGate, SetPasswordGate, CharacterCreationGate });

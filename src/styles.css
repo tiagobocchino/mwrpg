@@ -514,6 +514,41 @@ button, input, textarea, select { font: inherit; color: inherit; }
 .login-error { color: var(--seal); margin-top: 8px; }
 .login-toggle { width: 100%; margin-top: 10px; font-size: 10px; }
 
+/* === CRIAÇÃO DE PERSONAGEM (v0.6) === */
+.char-gate-card { max-width: 520px; }
+.class-cards { display: flex; flex-direction: column; gap: 8px; margin: 6px 0 4px; }
+.class-card {
+  display: flex; flex-direction: column; gap: 2px;
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in oklab, var(--ink) 22%, transparent);
+  border-radius: var(--radius-md);
+  background: color-mix(in oklab, var(--paper) 94%, white 6%);
+  cursor: pointer;
+  font-family: var(--font-body);
+}
+.class-card:hover { border-color: color-mix(in oklab, var(--gold) 50%, transparent); }
+.class-card.selected {
+  border-color: var(--gold);
+  background: color-mix(in oklab, var(--gold) 12%, var(--paper));
+}
+.class-card-name { font-family: var(--font-display); font-size: 15px; color: var(--ink); }
+.class-card-desc { font-size: 12.5px; color: var(--ink-2); }
+.class-card-stats { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-mute); letter-spacing: 0.04em; margin-top: 2px; }
+
+.adjust-row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  font-family: var(--font-mono); font-size: 11px; color: var(--ink-mute);
+  margin: 4px 0 12px;
+}
+.adjust-row label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+
+.name-suggestions {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  margin-top: 8px; font-size: 12.5px; color: var(--ink-mute);
+}
+.name-suggestion-btn { padding: 4px 8px; font-size: 12px; border: 1px solid color-mix(in oklab, var(--ink) 20%, transparent); }
+
 /* === DEMO BADGE / ENCERRAMENTO (v0.4) === */
 .demo-badge {
   border: 1px solid color-mix(in oklab, var(--gold) 50%, transparent);

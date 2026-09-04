@@ -158,6 +158,8 @@ mwrpg/
     ├── styles.css          # design system Manuscrito Vivo
     ├── data.js             # window.MWRPG_DATA — cenário, jogador, NPCs, mapa
     ├── maps.js              # window.MWRPG_MAPS — mapas Leaflet (cidade + interiores), mwrpgHasInterior()
+    ├── classes.js           # window.MWRPG_CLASSES — 3 classes, mwrpgBuildCharacter() (v0.6)
+    ├── seeds.js             # window.MWRPG_SEEDS — ganchos de recomeço, mwrpgPickNextSeed() (v0.6)
     ├── acervo.js            # window.MWRPG_ACERVO — referências de domínio público, pickAcervoLore()
     ├── engine.js           # window.MWRPG_ENGINE — d6, roll2d6, COMBAT_ACTIONS
     ├── master.js           # window.MWRPG_MASTER — ask() [Groq → claude.complete → offline], SYSTEM_PROMPT
@@ -174,15 +176,17 @@ Em `index.html`, scripts carregam nesta ordem (dependências antes de quem usa):
 1. React + ReactDOM + Babel standalone + **supabase-js** + **Leaflet** (CDN, integrity hashes pinados)
 2. `src/data.js` (vanilla)
 3. `src/maps.js` (vanilla — `window.MWRPG_MAPS`, usado por `MapPanel` em `components.jsx`)
-4. `src/acervo.js` (vanilla — precisa vir antes de `master.js`, que usa `pickAcervoLore`)
-5. `src/engine.js` (vanilla)
-6. `src/master.js` (vanilla)
-7. `src/storage.js` (vanilla)
-8. `src/auth.js` (vanilla — usa `window.supabase.createClient`)
-9. `src/cloudSync.js` (vanilla — usa `window.MWRPG_AUTH.getClient()`)
-10. `src/tweaks-panel.jsx` (Babel)
-11. `src/components.jsx` (Babel)
-12. `src/app.jsx` (Babel)
+4. `src/classes.js` (vanilla — `window.MWRPG_CLASSES`, usado por `CharacterCreationGate`)
+5. `src/seeds.js` (vanilla — `window.MWRPG_SEEDS`, usado por `handleReset` em `app.jsx`)
+6. `src/acervo.js` (vanilla — precisa vir antes de `master.js`, que usa `pickAcervoLore`)
+7. `src/engine.js` (vanilla)
+8. `src/master.js` (vanilla)
+9. `src/storage.js` (vanilla)
+10. `src/auth.js` (vanilla — usa `window.supabase.createClient`)
+11. `src/cloudSync.js` (vanilla — usa `window.MWRPG_AUTH.getClient()`)
+12. `src/tweaks-panel.jsx` (Babel)
+13. `src/components.jsx` (Babel)
+14. `src/app.jsx` (Babel)
 
 `api/master.js` e `api/config.js` não entram nessa lista — não são
 carregados pelo navegador, são Vercel Functions servidas em `/api/*`.
@@ -301,26 +305,67 @@ quando usar os lugares e cidades"). Implementação:
   layout mobile (375px) sem overflow horizontal. Ainda não testado em
   produção real pelo Tiago.
 
-### v0.5 — RAG com Supabase pgvector
+### v0.6 — Classes + recomeço com história variada ✅ implementado, aguardando teste do Tiago em produção
+Feedback real de jogadores externos (31/08/2026), processado pela
+Assembleia 05 (`docs/ASSEMBLEIA-05-CLASSES-E-RECOMECO-VARIADO.md`).
+Duas frentes:
+- **Sistema de classes** — `src/classes.js` (`window.MWRPG_CLASSES`):
+  Guerreiro (CRP 3/MNT 2/ALM 1), Ladina (MNT 3/CRP 2/ALM 1), Mágica
+  (ALM 3/MNT 2/CRP 1) — mapeamento 1:1 nos atributos já existentes, com
+  ajuste ±1 entre os dois atributos secundários. `CharacterCreationGate`
+  (`src/components.jsx`) — 3 cards de classe + nome, aparece só na
+  primeira vez que um usuário logado não tem personagem ainda. Nome
+  **único globalmente** (decisão do Tiago) — índice único
+  case-insensitive no banco (`supabase/schema.sql`), erro traduzido em
+  português com sugestões de nome alternativo quando colide
+  (`src/cloudSync.js` → `createCharacter`, `error.code === '23505'`).
+  A tabela `characters` (existia desde a v0.4, morta) finalmente está
+  em uso — `campaign_sessions.character_id` também passa a ser
+  preenchido de verdade.
+- **Recomeço com história variada** — `src/seeds.js`
+  (`window.MWRPG_SEEDS`): 6 ganchos curados, cada um ancorado numa
+  entrada real do acervo de domínio público, sorteados sem repetir o
+  último usado (localStorage). `src/master.js` →
+  `generateVariedIntro(seed)` pede ao mestre uma abertura de campanha
+  de verdade nova (1 chamada Groq); a mesma semente é reenviada em
+  **todo turno** daquela campanha (`seedContext`, dentro de
+  `buildGroqMessages`) pra situações ao longo da história também
+  variarem, não só a primeira mensagem — pedido explícito do Tiago
+  ("diálogos e situações", não só a abertura). Se a geração falhar por
+  qualquer motivo, cai pro texto fixo original — nunca trava o
+  "Recomeçar".
+- **Portão de lançamento inalterado**: nenhum convite novo de teste até
+  o mecanismo de proteção de orçamento da Groq (Assembleia 04) estar
+  pronto e testado em produção — essas duas frentes entram em paralelo
+  no desenvolvimento, não pulam essa fila.
+- **Testado localmente (31/08/2026)**: `CharacterCreationGate`
+  verificado ponta a ponta (troca de classe, ajuste ±1, prévia de
+  vida/foco, validação de nome, erro + sugestões de nome duplicado) em
+  desktop e mobile 375px, sem erro de console. Geração de abertura
+  variada verificada via chamada direta — local cai corretamente pro
+  fallback (sem `/api` fora da Vercel); teste contra Groq real em
+  produção pendente do deploy.
+
+### v0.7 — RAG com Supabase pgvector
 - 4 coleções: `regras`, `bestiario`, `lore_mundo`, `historico_campanha`.
 - Ingestão dos CSVs descritos no Relatório §4–8.
 - Embeddings via `text-embedding-3-small` (OpenAI) ou `voyage-3-lite`.
 - Mestre puxa top-5 trechos relevantes a cada turno.
 
-### v0.6 — Combate tático
+### v0.8 — Combate tático
 - Hex grid opcional sobre o mapa quando `mode === 'combat'`.
 - Tokens arrastáveis (com snap).
 - HP/foco animados (Framer Motion `layout`).
 
-### v0.7 — Bestiário/itens visuais
+### v0.9 — Bestiário/itens visuais
 - Modal "Compêndio" com pesquisa fuzzy.
 - Cards de monstros, armas, magias usando o design system.
 
-### v0.8 — Som
+### v0.10 — Som
 - Música ambiente low-loop (CC0 do freesound.org).
 - SFX: rolagem de dado, virar pergaminho, selo batendo.
 
-### v0.9 — TTS opcional
+### v0.11 — TTS opcional
 - Web Speech API. Voz "fr-CA" para o mestre (sotaque bretão estilizado).
 
 ### v1.0 — Compartilhamento de campanha
