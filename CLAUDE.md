@@ -352,7 +352,7 @@ Duas frentes:
   perdendo de novo (Manual 05, agora corrigido cobrindo os **dois**
   templates que `signInWithOtp` pode disparar, não só um).
 
-### v0.7 — Mapas avançados: névoa por nó, regra de acesso, marcador de missão ⏳ camada de dados/regra implementada, arte em andamento
+### v0.7 — Mapas avançados: névoa por nó, regra de acesso, marcador de missão ⏳ implementado (fase 1 + fase 2), aguardando push e validação do Tiago em produção
 Assembleia 06 (`docs/ASSEMBLEIA-06-MAPAS-AVANCADOS.md`, Finalista 3,
 aprovado pelo Tiago), fase 1 de 2 (dados/regra antes da arte, por
 pedido dele — "se o tempo apertar, o que fica pra trás é o acabamento
@@ -384,9 +384,53 @@ visual, não a mecânica"):
   uma missão contada por um NPC pode aparecer no mapa antes de ser
   visitada. **O efeito visual de escuridão sobre o mapa não entra
   nesta versão** (Assembleia 06, gap reconhecido) — fica pra v0.8+.
-- **Ainda não feito**: arte melhorada (exteriores estilizados, mobília
-  real do Kenney Roguelike/RPG pack nos interiores) e o(s) 1-2 local(is)
-  distante(s) curado(s) — próxima fase desta mesma versão.
+**Fase 2 (arte, 04/09/2026)** — os 4 PNGs de mapa foram redesenhados do
+zero, mesma disciplina de proveniência do resto do projeto:
+- **Exteriores**: terreno pintado por código (ruído + bandas discretas,
+  efeito cel-shaded) em vez de cor sólida lisa, caminhos curvos
+  (Bézier) ligando os locais em vez de linhas retas, baía d'água no
+  canto do mapa da cidade — visual mais próximo da referência de
+  estilo pedida pelo Tiago (Kingdom Hearts), continuando 100% CC0.
+- **Interiores com mobília real**: novo pacote CC0 Kenney "Roguelike/RPG
+  pack" (proveniência completa, tiles verificados por contact sheet, em
+  `docs/MAPAS-PROVENIENCIA.md`) — mesa longa + cadeiras + balcão na
+  Taberna, armários + bancos na Capela; no Farol, como o pacote não tem
+  sprite de escada nenhum (varrido inteiro), a escada foi desenhada por
+  código (espiral concêntrica) em vez de forçar um tile errado. Agora dá
+  pra diferenciar mesa de cadeira de balcão de armário olhando o mapa,
+  como o Tiago pediu.
+- **1-2 locais distantes curados**: `ruinas-afogadas` e
+  `cripta-sob-capela` (`src/maps.js` + `src/master.js`), amarrados aos
+  ganchos da quimera e do minotauro que já existiam em `src/seeds.js` —
+  dão nome estável a esses locais em vez do mestre inventar um id
+  aleatório toda vez. **De propósito, nenhum dos dois tem mapa próprio
+  desenhado**: são `masmorra` no registro de tipo, então a regra de
+  acesso da fase 1 já esconde o painel de mapa enquanto o grupo estiver
+  lá dentro — uma imagem nunca chegaria a aparecer, então desenhar uma
+  seria trabalho jogado fora.
+- **Peso medido antes de adotar** (condição do Tiago): os 4 PNGs juntos
+  foram de ~55 KB (v0.5) pra ~175 KB (v0.7), ~3,2×. Reduzido de um
+  primeiro rascunho de ~515 KB via banding do ruído (grandes áreas
+  planas em vez de gradiente contínuo pixel-a-pixel) + quantização de
+  paleta (64-96 cores) — número final registrado em
+  `docs/MAPAS-PROVENIENCIA.md`.
+- **Testado localmente (04/09/2026)**: os 4 mapas renderizados de
+  verdade via Leaflet (`MapPanel` real, harness isolado sem precisar de
+  login/Groq) — cidade com névoa por nó funcionando (só mostra
+  descobertos/conhecidos), interior da taberna e do farol com a
+  mobília/escada nova visíveis, estado "mapa indisponível aqui"
+  (`accessible: false`) funcionando — desktop e mobile (375px), sem
+  erro de console, sem 404 de asset.
+- **O que o Tiago vai conseguir VER**: os 4 mapas com visual novo
+  (terreno pintado, caminhos curvos, móveis reais nos 3 interiores,
+  escada no farol) assim que o push subir — o resto (névoa, regra de
+  acesso, marcador de missão) já estava visível desde a fase 1. O
+  efeito de escurecimento visual sobre áreas inexploradas **continua
+  fora desta versão** (mesmo gap já reconhecido na fase 1, fica pra
+  v0.8+).
+- **Push pendente** — meu `git push` continua falhando neste ambiente;
+  commit pronto localmente, precisa do Tiago rodar o push manual antes
+  de testar em produção.
 
 ### v0.8 — RAG com Supabase pgvector
 - 4 coleções: `regras`, `bestiario`, `lore_mundo`, `historico_campanha`.

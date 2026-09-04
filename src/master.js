@@ -49,6 +49,10 @@ REVELAR MISSÃO — quando um NPC aponta um lugar ainda não visitado:
 - Não repita o mesmo "revealMission" em turnos seguintes pra missão já revelada — só na primeira vez que ela é contada.
 - Isso é opcional — a maioria dos turnos não revela missão nenhuma, deixe "revealMission": null.
 
+LOCAIS DISTANTES CURADOS — use estes dois em vez de inventar outro lugar quando a cena combinar com o gancho:
+- "ruinas-afogadas" ("Ruínas Afogadas") — as ruínas na maré baixa do gancho da quimera. Masmorra, sem mapa próprio: sempre "remoteArea": true enquanto o grupo estiver lá dentro.
+- "cripta-sob-capela" ("Cripta sob a Capela") — o corredor novo do gancho do minotauro. Mesma regra: "remoteArea": true lá dentro, "false" ao voltar pra capela.
+
 Mantenha continuidade com o histórico.`;
 
   function buildMessages(history, latest) {
