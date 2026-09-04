@@ -110,3 +110,58 @@ alter table public.campaign_sessions
 -- { id, titulo, localId, status: 'revelada'|'concluida' }.
 alter table public.campaign_sessions
   add column if not exists missions jsonb not null default '[]'::jsonb;
+
+-- ============================================================
+-- v0.8, Fase 0 — portão de orçamento de token da Groq
+-- (Assembleia 04, docs/ASSEMBLEIA-04-IMPLEMENTACAO-PERSONAGEM-ORCAMENTO.md
+-- — vencedor, "orçamento com dado real da Groq" + Assembleia 07/08, a
+-- condição não-negociável do voto minoritário do AI Master Engineer:
+-- nem itens nem magia sobem em código antes disto estar pronto e
+-- testado em produção.)
+--
+-- Contador agregado por dia (não por usuário — o teto do free tier da
+-- Groq é por ORGANIZAÇÃO inteira, não por jogador). Não usa RLS porque
+-- só o servidor toca esta tabela, via api/master.js com a chave
+-- secreta (SUPABASE_SECRET_KEY, já configurada na Vercel — Manual 03)
+-- — a secreta ignora RLS por padrão, mas deixamos RLS ligada mesmo
+-- assim, sem nenhuma policy, pra bloquear qualquer acesso via chave
+-- pública por omissão (segurança em profundidade).
+-- ============================================================
+
+create table if not exists public.groq_usage_daily (
+  usage_date date primary key,
+  tokens_used bigint not null default 0,
+  requests_count integer not null default 0,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.groq_usage_daily enable row level security;
+-- Nenhuma policy criada de propósito — bloqueia tudo que não usar a
+-- chave secreta (que ignora RLS). Nem o cliente autenticado comum lê
+-- ou escreve aqui.
+
+-- Incremento atômico — evita a condição de corrida que o Code QA
+-- Engineer marcou como requisito de segurança na Assembleia 04: dois
+-- turnos terminando ao mesmo tempo não podem os dois ler o total
+-- "antes" do incremento um do outro. UPSERT com incremento relativo
+-- (tokens_used = tokens_used + p_tokens) é atômico por natureza do
+-- Postgres — não precisa de lock explícito.
+create or replace function public.increment_groq_usage(p_date date, p_tokens integer)
+returns bigint
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_total bigint;
+begin
+  insert into public.groq_usage_daily (usage_date, tokens_used, requests_count)
+  values (p_date, greatest(p_tokens, 0), 1)
+  on conflict (usage_date) do update
+    set tokens_used = groq_usage_daily.tokens_used + greatest(p_tokens, 0),
+        requests_count = groq_usage_daily.requests_count + 1,
+        updated_at = now()
+  returning tokens_used into v_total;
+  return v_total;
+end;
+$$;

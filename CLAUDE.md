@@ -432,26 +432,89 @@ zero, mesma disciplina de proveniência do resto do projeto:
   commit pronto localmente, precisa do Tiago rodar o push manual antes
   de testar em produção.
 
-### v0.8 — RAG com Supabase pgvector
-- 4 coleções: `regras`, `bestiario`, `lore_mundo`, `historico_campanha`.
-- Ingestão dos CSVs descritos no Relatório §4–8.
-- Embeddings via `text-embedding-3-small` (OpenAI) ou `voyage-3-lite`.
-- Mestre puxa top-5 trechos relevantes a cada turno.
+### v0.8 — Portão de orçamento, progressão/magia, itens e raridades ⏳ Fase 0 implementada, aguardando SQL + push + teste
+Assembleias 07 (`docs/ASSEMBLEIA-07-ITENS-E-RARIDADES.md`) e 08
+(`docs/ASSEMBLEIA-08-MAGIA-E-PROGRESSAO.md`), ambas aprovadas pelo
+Tiago. Três fases, nesta ordem — condição não-negociável do voto
+minoritário da Assembleia 04/07/08: **nada de itens nem magia antes do
+portão de orçamento estar pronto e testado em produção.**
+
+**Fase 0 — portão de orçamento de token da Groq (Assembleia 04):**
+- `api/master.js`: antes de cada chamada à Groq, lê o total de tokens já
+  gastos hoje (`groq_usage_daily`, contador agregado por organização,
+  não por jogador) e bloqueia com `429 groq_quota_exceeded` **sem gastar
+  nem 1 token** se já perto do teto — mesmo formato de erro que o 429
+  reativo da própria Groq, o cliente (`quotaExceededResponse` em
+  `src/master.js`) trata os dois casos igual, sem mudança nenhuma no
+  cliente.
+- Depois de cada chamada bem-sucedida, grava `usage.total_tokens` real
+  da resposta da Groq (confirmado ao vivo em 04/09/2026 que esse campo
+  existe — não era suposição) via função RPC atômica
+  (`increment_groq_usage`) — evita a condição de corrida de dois turnos
+  terminando ao mesmo tempo (requisito do Code QA Engineer).
+- Limites reais verificados ao vivo em 04/09/2026 (nunca de memória):
+  30 RPM, 1.000 RPD, 8.000 TPM, **200.000 TPD** — TPD é o que estoura
+  primeiro na prática. Margem de segurança: bloqueia a 90% (180.000) —
+  número de partida conservador, não medido ainda (não existia contador
+  nenhum até agora); revisar com dado real depois de alguns dias no ar.
+- Falha aberta se o Supabase estiver fora do ar na hora da leitura
+  (não trava o jogo inteiro por uma falha transitória de um mecanismo
+  de orçamento, não de segurança de dado) — o 429 real da Groq continua
+  como rede de segurança final em qualquer cenário.
+- **Testado localmente** com fetch mockado (3 cenários: uso normal grava
+  o total real; uso perto do teto bloqueia sem chamar a Groq; falha de
+  leitura não derruba a chamada) — não dá pra testar o teto de verdade
+  sem gastar 200k tokens reais, então a validação de produção é
+  observar o contador crescer em uso normal, não forçar o bloqueio.
+- **Pendente**: rodar `supabase/schema.sql` de novo no SQL Editor
+  (idempotente, só adiciona `groq_usage_daily` + a função RPC) — sem
+  isso a leitura falha aberta e a proteção não roda de verdade, mesmo
+  com o código já no ar. Push também pendente (meu `git push` continua
+  falhando).
+- **O que o Tiago vai conseguir ver**: nada de novo na tela — este
+  mecanismo é infraestrutura invisível. A prova de que funciona é o
+  jogo continuar respondendo normalmente, e (depois de alguns dias)
+  dá pra consultar `select * from groq_usage_daily order by usage_date
+  desc` no SQL Editor pra ver o gasto real por dia.
+
+**Fase 1 — fundação de progressão (Assembleia 08)**: Inteligência como
+4º atributo (aprovado pelo Tiago, separado de MNT, fora do orçamento de
+criação de 6 entre CRP/MNT/ALM, sobe só por XP) + XP/progressão +
+`src/spells.js` (catálogo pequeno, 10-15 magias, fonte SRD 5.1) +
+desbloqueio automático por limiar de INT. **Ainda não implementado.**
+Cuidado de migração já identificado (pedido do Tiago): personagens já
+criados (o dele + testadores externos) precisam ganhar INT sem quebrar
+— provavelmente `alter table characters ... add column` com default
+seguro, não decidido em detalhe ainda.
+
+**Fase 2 — itens e raridades (Assembleia 07)**: catálogo `src/items.js`
+(7 raridades: Comum→Raro→Mágico→Mítico→Épico→Lendário→Divino),
+`window.MWRPG_ENEMY_TIERS`, drop resolvido por código, tabela
+`character_inventory`. **Ainda não implementado.**
 
 ### v0.9 — Combate tático
 - Hex grid opcional sobre o mapa quando `mode === 'combat'`.
 - Tokens arrastáveis (com snap).
 - HP/foco animados (Framer Motion `layout`).
 
-### v0.10 — Bestiário/itens visuais
-- Modal "Compêndio" com pesquisa fuzzy.
-- Cards de monstros, armas, magias usando o design system.
+### v0.10 — RAG com Supabase pgvector
+- 4 coleções: `regras`, `bestiario`, `lore_mundo`, `historico_campanha`.
+- Ingestão dos CSVs descritos no Relatório §4–8.
+- Embeddings via `text-embedding-3-small` (OpenAI) ou `voyage-3-lite`.
+- Mestre puxa top-5 trechos relevantes a cada turno.
 
-### v0.11 — Som
+### v0.11 — Compêndio visual e polish de itens/magia
+- Modal "Compêndio" com pesquisa fuzzy sobre os catálogos de
+  `items.js`/`spells.js`/bestiário.
+- Ícone/arte por item e por magia (deferido de propósito nas
+  Assembleias 07/08 — mecânica antes de acabamento visual, mesmo
+  raciocínio já aplicado na Assembleia 06).
+
+### v0.12 — Som
 - Música ambiente low-loop (CC0 do freesound.org).
 - SFX: rolagem de dado, virar pergaminho, selo batendo.
 
-### v0.12 — TTS opcional
+### v0.13 — TTS opcional
 - Web Speech API. Voz "fr-CA" para o mestre (sotaque bretão estilizado).
 
 ### v1.0 — Compartilhamento de campanha
