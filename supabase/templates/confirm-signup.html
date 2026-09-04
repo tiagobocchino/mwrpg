@@ -1,0 +1,19 @@
+<!--
+  Template "Confirm sign up" do Supabase Auth — fonte de verdade
+  versionada. O signInWithOtp() deste jogo (src/auth.js) pode disparar
+  ESTE template em vez do "Magic Link or OTP" dependendo do estado da
+  conta — os dois precisam estar traduzidos, não só um (achado real,
+  31/08/2026 — editar só o Magic Link não bastou).
+
+  Assunto (campo Subject, colar separado — não faz parte deste arquivo):
+  Confirme seu email — bem-vindo a Ys
+
+  Ver docs/MANUAL-05-URL-CONFIGURATION.md, Parte 2, pro passo a passo
+  completo (inclui o outro template, "Magic Link or OTP" —
+  magic-link.html neste diretório).
+-->
+<h2>A Coroa Enterrada de Ys</h2>
+<p>Penmarc'h aguarda — falta só confirmar seu email pra sua campanha começar.</p>
+<p>Clique no link abaixo para confirmar e entrar:</p>
+<p><a href="{{ .ConfirmationURL }}">Confirmar e entrar em Ys</a></p>
+<p>Se você não pediu este link, ignore este email sem preocupação.</p>

@@ -305,7 +305,7 @@ quando usar os lugares e cidades"). Implementação:
   layout mobile (375px) sem overflow horizontal. Ainda não testado em
   produção real pelo Tiago.
 
-### v0.6 — Classes + recomeço com história variada ✅ implementado, aguardando teste do Tiago em produção
+### v0.6 — Classes + recomeço com história variada ✅ implementado e validado em produção pelo Tiago
 Feedback real de jogadores externos (31/08/2026), processado pela
 Assembleia 05 (`docs/ASSEMBLEIA-05-CLASSES-E-RECOMECO-VARIADO.md`).
 Duas frentes:
@@ -343,8 +343,14 @@ Duas frentes:
   vida/foco, validação de nome, erro + sugestões de nome duplicado) em
   desktop e mobile 375px, sem erro de console. Geração de abertura
   variada verificada via chamada direta — local cai corretamente pro
-  fallback (sem `/api` fora da Vercel); teste contra Groq real em
-  produção pendente do deploy.
+  fallback (sem `/api` fora da Vercel).
+- **✅ Validado em produção pelo próprio Tiago (31/08/2026)**: as duas
+  frentes funcionando de verdade — criação de personagem com classe, e
+  recomeço gerando história realmente diferente (abertura + situações).
+  Achado separado no mesmo teste: o email de login voltou a chegar em
+  inglês — não era bug desta feature, era o template do Supabase se
+  perdendo de novo (Manual 05, agora corrigido cobrindo os **dois**
+  templates que `signInWithOtp` pode disparar, não só um).
 
 ### v0.7 — RAG com Supabase pgvector
 - 4 coleções: `regras`, `bestiario`, `lore_mundo`, `historico_campanha`.

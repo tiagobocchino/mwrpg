@@ -1,0 +1,19 @@
+<!--
+  Template "Magic Link or OTP" do Supabase Auth — fonte de verdade
+  versionada. O painel do Supabase não tem histórico nem controle de
+  versão (foi por isso que a tradução deste template se perdeu uma vez,
+  31/08/2026) — se o email voltar a chegar em inglês, cole o conteúdo
+  abaixo de novo em Authentication → Email Templates → Magic Link or OTP.
+
+  Assunto (campo Subject, colar separado — não faz parte deste arquivo):
+  Seu link para entrar em Ys
+
+  Ver docs/MANUAL-05-URL-CONFIGURATION.md, Parte 2, pro passo a passo
+  completo (inclui o segundo template, "Confirm sign up", que também
+  precisa da mesma tradução — confirm-signup.html neste diretório).
+-->
+<h2>A Coroa Enterrada de Ys</h2>
+<p>A maré trouxe seu convite de volta.</p>
+<p>Clique no link abaixo para entrar na sua campanha. Ele vale por pouco tempo — não demore:</p>
+<p><a href="{{ .ConfirmationURL }}">Entrar em Ys</a></p>
+<p>Se você não pediu este link, ignore este email sem preocupação.</p>
