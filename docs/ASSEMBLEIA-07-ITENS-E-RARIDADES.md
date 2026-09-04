@@ -9,8 +9,22 @@ dungeons/fechamentos de arco/campanha pros níveis mais altos.
 Método completo (`docs/METODO-PLANEJAMENTO.md`): baseline nos 6 pontos
 que o Tiago pediu pra confrontar → consulta individual aos agentes →
 síntese → 5 finalistas → votação com divergência real → vencedor →
-corte de escopo. **Não implementado** — aguardando aprovação do Tiago,
-com duas perguntas em aberto que não posso decidir sozinho.
+corte de escopo. **Não implementado** — a implementação real de itens
+segue bloqueada atrás do portão de orçamento da Groq (Seção 6) e,
+agora, também atrás da fundação do sistema de magia (`Assembleia 08`),
+já que "mágico" virou um degrau de raridade que depende de existir
+magia de verdade no jogo.
+
+> **ERRATA (respostas do Tiago, tratadas como especificação — ver
+> `ASSEMBLEIA-08-MAGIA-E-PROGRESSAO.md` para o desdobramento completo)**:
+> as duas perguntas abaixo (1.1 e 1.2) foram respondidas por ele
+> diretamente. A Seção 1.1 abaixo é mantida como registro do raciocínio
+> original, mas **a escala de raridade final tem 7 degraus, não 6**:
+> **Comum → Raro → Mágico → Mítico → Épico → Lendário → Divino**.
+> Mágico *é* um degrau — mas só quando o item chega até ele por
+> magia inerente (não por encantamento de jogador, que é temporário e
+> não muda raridade nenhuma; ver Assembleia 08 Seção 1). Épico fica
+> confirmado entre Mítico e Lendário, como proposto.
 
 ---
 
@@ -36,14 +50,22 @@ Essa leitura resolve a contradição aparente (por que um "item mágico"
 teria uma raridade *dele mesmo* listada dentro da própria descrição,
 senão porque raridade e magia são dois eixos?), mas muda o que o Tiago
 talvez estivesse imaginando (uma escada de 7 degraus, mágico incluso).
-**Não decidi sozinho — essa é a pergunta 1 em aberto no fim do
-documento.** Toda a análise abaixo assume a leitura de "propriedade",
-mas o desenho é reversível: se o Tiago confirmar que queria 7 degraus
-com mágico como um deles, a maior parte do resto (registro de
-inimigo, resolução de drop por código) continua igual — só muda a
-enumeração de raridades e some a necessidade do campo `encantado`.
+**Respondido pelo Tiago (verbatim)**: "O item Mágico obtido sem ser por
+encantamento ele aumenta a raridade do item sim, agora o item
+encantado, como o encantamento é temporário, ele não aumenta essa
+raridade." Ou seja: são **dois mecanismos distintos, só um mexe na
+raridade** — exatamente a divisão que eu tinha proposto, mas com uma
+correção importante: mágico-por-origem-inerente (não por encantamento
+de jogador) **é sim um degrau próprio da escada**, não uma propriedade
+puramente ortogonal como eu tinha lido. Escada corrigida (7 degraus):
+**Comum → Raro → Mágico → Mítico → Épico → Lendário → Divino**.
+Encantamento de jogador (temporário, por spell) continua sendo um
+campo separado que não empurra o item pra outro degrau — ver
+`ASSEMBLEIA-08-MAGIA-E-PROGRESSAO.md` Seção 1 pra como os dois casos se
+encaixam (inclusive o caso do dragão de gelo, que ficava ambíguo entre
+"Mítico e mágico" ao mesmo tempo).
 
-### 1.2 Épico sem regra de obtenção — proposta, pendente de confirmação
+### 1.2 Épico sem regra de obtenção — confirmado pelo Tiago
 
 O texto do Tiago numerou 1 (comum) a 6 (divino) mas pulou épico — ele
 apareceu só na lista de abertura, sem parágrafo próprio. Seguindo o
@@ -56,8 +78,14 @@ tende a ser Mítico) nem uma criatura registrada como Lendária/Divina —
 ou como recompensa garantida por completar um **desafio opcional**
 dentro da dungeon (sala secreta, baú de elite, puzzle). Fica entre
 Mítico e Lendário em dificuldade de obtenção, como a posição dele na
-lista original do Tiago sugere. **Marcado como pendente de confirmação
-dele** — é uma proposta, não uma decisão eu tomei sem avisar.
+lista original do Tiago sugere.
+
+**Confirmado pelo Tiago**: "eu realmente não expliquei o épico, ele
+ficara em um nível entre o mítico e o lendário." A posição está
+confirmada; o gatilho narrativo específico (miniboss/desafio opcional)
+continua sendo a proposta de implementação — não foi rejeitado nem
+formalmente aprovado à parte, mas nada nas respostas do Tiago contraria
+essa leitura.
 
 ### 1.3 Nível de inimigo — quem define (aplicando o princípio do mapa)
 
@@ -183,7 +211,7 @@ diferentes — confirmado lendo `supabase/schema.sql`. Inventário de
 item, como personagem e campanha, é dado isolado por conta; nada aqui
 precisa de tempo real.)*
 
-**Game System Designer** — a favor da escada de 6 degraus (leitura da
+**Game System Designer** — a favor da escada de 7 degraus (leitura da
 Seção 1.1) porque mantém a fórmula canônica intacta e dá pra cada
 degrau um gatilho narrativo claro. Divergência real: quer que a
 curadoria do registro de tier de inimigo comece **pequena** (10-15
@@ -264,7 +292,7 @@ porque resolve token, proveniência e anti-exploit ao mesmo tempo.
 ## 3. Síntese — convergência e divergência real
 
 **Convergência forte (nenhum agente discordou)**:
-- Raridade de 6 degraus + "mágico" como propriedade separada (pendente
+- Raridade de 7 degraus (correção pós-resposta do Tiago — ver ERRATA) + "mágico" como propriedade separada (pendente
   de confirmação do Tiago, mas nenhum agente propôs os 7 degraus).
 - Catálogo estático em `src/items.js`, sem tabela nova pra conteúdo.
 - Drop resolvido por código a partir de um sinal mínimo do mestre —
@@ -295,8 +323,8 @@ uma lista solta). Rápido, mas ignora a maior parte do que o Tiago
 descreveu (mítico, épico, lendário, divino, magia, registro de
 inimigo) — serve só de piso de comparação.
 
-### Finalista 2 — "6 raridades, mas só básico/forte disparam drop"
-Catálogo completo (6 raridades + propriedade mágica), mas o registro
+### Finalista 2 — "7 raridades, mas só básico/forte disparam drop"
+Catálogo completo (7 raridades + propriedade mágica), mas o registro
 de tier de inimigo só cobre básico/forte — mítico/épico/lendário/
 divino só entram via gatilho narrativo direto (fechamento de arco/
 campanha), nunca de inimigo derrotado. Evita ter que curar bestiário
@@ -304,7 +332,7 @@ agora, mas contraria o pedido explícito do Tiago ("inimigos míticos...
 dropam itens míticos").
 
 ### Finalista 3 — "Economia completa, encantamento por jogador fora"
-Catálogo completo (6 raridades + propriedade mágica), registro de tier
+Catálogo completo (7 raridades + propriedade mágica), registro de tier
 de inimigo cobrindo todos os 6 tiers (curadoria pequena, 12-15
 criaturas pra começar — meio-termo entre Game System Designer e
 Backend), drop resolvido por código via `itemHint` mínimo, encantamento
@@ -354,7 +382,7 @@ entram já" — a arquitetura de fundo é idêntica.
 
 ## 6. Vencedor — com a objeção da minoria incorporada
 
-**Finalista 5 — economia completa de 6 raridades, catálogo inicial
+**Finalista 5 — economia completa de 7 raridades, catálogo inicial
 pequeno, encantamento por jogador fora desta rodada.**
 
 **Objeção formal do AI Master Engineer incorporada como condição, não
@@ -369,7 +397,7 @@ itens.**
 
 ### O que entra no v0.8 (proposta de corte)
 
-- Catálogo `src/items.js`: 6 raridades (Comum, Raro, Mítico, Épico,
+- Catálogo `src/items.js`: 7 raridades (Comum, Raro, Mágico, Mítico, Épico,
   Lendário, Divino) × propriedade `encantado` opcional em qualquer uma.
   Conteúdo inicial pequeno — 8-10 Comum/Raro, 4-6 Mítico, 2-3 cada em
   Épico/Lendário/Divino — fonte SRD 5.1/PF2e SRD/domínio público,
@@ -404,19 +432,21 @@ itens.**
 
 ---
 
-## Aguardando aprovação do Tiago — duas perguntas em aberto, não decidi
+## Status — as duas perguntas foram respondidas pelo Tiago
 
-**Pergunta 1 (Seção 1.1)**: confirma que "mágico" é uma propriedade que
-gruda em qualquer raridade (Comum-a-Divino), e não um 7º degrau
-separado da escada? Toda a análise acima assume essa leitura porque é
-a que bate com o próprio exemplo do dragão de gelo, mas é uma leitura
-minha do texto, não o que você necessariamente tinha em mente.
+**Pergunta 1**: respondida — "mágico" É um degrau (ver ERRATA no topo
+do documento), escada corrigida pra 7 degraus, com o encantamento de
+jogador confirmado como eixo separado que não muda raridade.
 
-**Pergunta 2 (Seção 1.2)**: a regra proposta pra Épico (encontro de
-elite/miniboss dentro de dungeon, ou desafio opcional) serve, ou você
-tinha outra ideia pra esse degrau que ficou de fora do texto original?
+**Pergunta 2**: respondida — Épico confirmado entre Mítico e Lendário.
 
-Fora essas duas, tudo o resto (registro de inimigo, resolução por
-código, catálogo pequeno, encantamento de jogador como frente própria,
-ordem de implementação atrás do portão de orçamento da Groq) está
-proposto e pronto pra aprovação — não implementado até você confirmar.
+O restante do desenho (registro de inimigo, resolução de drop por
+código, catálogo pequeno, ordem atrás do portão de orçamento da Groq)
+segue proposto como estava. **O que mudou de verdade**: como "mágico"
+agora depende de existir magia de verdade no jogo (não só uma tag
+decorativa), a implementação de itens ganhou uma dependência nova —
+ver `ASSEMBLEIA-08-MAGIA-E-PROGRESSAO.md`, que trata isso como parte
+da fundação do sistema de magia, junto com o pedido mais amplo de
+progressão/spells/encantamento que o Tiago trouxe na sequência.
+**Continua não implementado** — aguardando aprovação conjunta das duas
+assembleias (07 e 08), já que uma depende da outra pra fazer sentido.
