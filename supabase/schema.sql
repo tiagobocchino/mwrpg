@@ -85,3 +85,28 @@ create unique index if not exists characters_name_unique_ci
 -- também variarem, não só a abertura.
 alter table public.campaign_sessions
   add column if not exists seed jsonb;
+
+-- ============================================================
+-- v0.7 — mapas avançados: névoa por nó, regra de acesso, marcador
+-- de missão mínimo (Assembleia 06,
+-- docs/ASSEMBLEIA-06-MAPAS-AVANCADOS.md — Finalista 3 vencedor)
+-- ============================================================
+
+-- Locais já visitados fisicamente nesta campanha (array de ids, ex.:
+-- ["tavern","chapel"]) — controla o que aparece revelado no mapa.
+alter table public.campaign_sessions
+  add column if not exists discovered jsonb not null default '[]'::jsonb;
+
+-- Pontos de interesse conhecidos por informação (ex.: um NPC contou
+-- de um lugar que o jogador nunca visitou) — aparecem no mapa mesmo
+-- sem estar em "discovered", sem revelar o terreno ao redor. Lista de
+-- objetos { id, title, locationId }.
+alter table public.campaign_sessions
+  add column if not exists known_markers jsonb not null default '[]'::jsonb;
+
+-- Marcador de missão mínimo — não é sistema de missão completo (sem
+-- objetivo/recompensa/conclusão verificável), só o suficiente pra
+-- guardar o que um NPC revelou. Lista de objetos
+-- { id, titulo, localId, status: 'revelada'|'concluida' }.
+alter table public.campaign_sessions
+  add column if not exists missions jsonb not null default '[]'::jsonb;

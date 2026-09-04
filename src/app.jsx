@@ -60,6 +60,14 @@ function App() {
   const characterBase = useR(null); // ficha "pristina" da classe, usada no recomeço
   const characterChecked = useR(false);
 
+  // v0.7 — mapas avançados (Assembleia 06): névoa por nó, regra de
+  // acesso ao mapa, marcador de missão mínimo.
+  const [discovered, setDiscovered] = useS(() => [init.partyAt]);
+  const [knownMarkers, setKnownMarkers] = useS([]); // [{ id, title, locationId }]
+  const [missions, setMissions] = useS([]); // [{ id, titulo, localId, status }]
+  const [remoteArea, setRemoteArea] = useS(false); // cena fora de qualquer local conhecido (mapHint.remoteArea)
+  const mapAccessible = !remoteArea && window.mwrpgLocationType(partyAt) === 'cidade';
+
   // v0.4 — login (link mágico). authRequired só vira true se /api/config
   // responder com sucesso (Supabase configurado); senão o jogo segue sem
   // login, como sempre funcionou.
@@ -117,8 +125,12 @@ function App() {
         setTurnCount(existing.turn_count || 0);
         setDemoLocked(existing.status === 'demo_limit_reached');
         setCampaignSeed(existing.seed || null);
+        setDiscovered(existing.discovered && existing.discovered.length ? existing.discovered : [existing.party_at || 'tavern']);
+        setKnownMarkers(existing.known_markers || []);
+        setMissions(existing.missions || []);
+        setRemoteArea(false); // não persistimos "no meio de uma cena remota" entre sessões — volta neutro
       } else {
-        const created = await window.MWRPG_CLOUD.createSession(userId, init, charId, null);
+        const created = await window.MWRPG_CLOUD.createSession(userId, init, charId, null, { discovered: [init.partyAt] });
         cloudSessionId.current = created.id;
       }
     } catch (e) {
@@ -171,12 +183,12 @@ function App() {
       window.MWRPG_CLOUD.saveSession(cloudSessionId.current, {
         messages, history: history.current, options, mode, party_at: partyAt,
         turn_count: turnCount, status: demoLocked ? 'demo_limit_reached' : 'active',
-        seed: campaignSeed
+        seed: campaignSeed, discovered, known_markers: knownMarkers, missions
       }).catch(e => console.error('cloudSync: falha ao salvar', e));
     } else if (!authRequired) {
-      window.MWRPG_STORAGE.save({ messages, history: history.current, options, mode, player, partyAt, campaignSeed });
+      window.MWRPG_STORAGE.save({ messages, history: history.current, options, mode, player, partyAt, campaignSeed, discovered, knownMarkers, missions });
     }
-  }, [messages, options, mode, player, partyAt, turnCount, demoLocked, campaignSeed]);
+  }, [messages, options, mode, player, partyAt, turnCount, demoLocked, campaignSeed, discovered, knownMarkers, missions]);
 
   const handleContinue = useCB(() => {
     const saved = window.MWRPG_STORAGE.load();
@@ -189,6 +201,10 @@ function App() {
     setPartyAt(saved.partyAt || 'tavern');
     setMapScale('city');
     setCampaignSeed(saved.campaignSeed || null);
+    setDiscovered(saved.discovered && saved.discovered.length ? saved.discovered : [saved.partyAt || 'tavern']);
+    setKnownMarkers(saved.knownMarkers || []);
+    setMissions(saved.missions || []);
+    setRemoteArea(false);
     setCanContinue(false);
   }, []);
 
@@ -308,12 +324,32 @@ function App() {
     // o local (volta pra escala de cidade); enterInterior mostra o
     // interior do local atual, se existir um registrado em maps.js.
     if (resp.mapHint && resp.mapHint.moveTo) {
-      setPartyAt(resp.mapHint.moveTo);
+      const dest = resp.mapHint.moveTo;
+      setPartyAt(dest);
       setMapScale('city');
+      // v0.7 — chegar num local conhecido sempre limpa "área remota"
+      // (é o próprio jeito do jogador "sair de lá" voltar a liberar o mapa).
+      setRemoteArea(false);
+      setDiscovered(d => (d.indexOf(dest) === -1 ? [...d, dest] : d));
     } else if (resp.mapHint && resp.mapHint.enterInterior) {
       setMapScale(sc => (window.mwrpgHasInterior(partyAt) ? 'interior' : sc));
     } else if (resp.mapHint && resp.mapHint.enterInterior === false) {
       setMapScale('city');
+    }
+
+    // v0.7 — regra de acesso ao mapa pra cenas ad-hoc que não têm
+    // registro fixo em maps.js (Assembleia 06, Seção 1.3).
+    if (resp.mapHint && typeof resp.mapHint.remoteArea === 'boolean') {
+      setRemoteArea(resp.mapHint.remoteArea);
+    }
+
+    // v0.7 — marcador de missão mínimo: um NPC revelou um local ainda
+    // não visitado. Aparece no mapa sem revelar o terreno ao redor
+    // (Seção 1.2) — nunca mistura com a lista de locais descobertos.
+    if (resp.mapHint && resp.mapHint.revealMission && resp.mapHint.revealMission.id) {
+      const rm = resp.mapHint.revealMission;
+      setMissions(ms => (ms.some(m => m.id === rm.id) ? ms : [...ms, { id: rm.id, titulo: rm.titulo, localId: rm.localId, status: 'revelada' }]));
+      setKnownMarkers(km => (km.some(k => k.locationId === rm.localId) ? km : [...km, { id: rm.id, title: rm.titulo, locationId: rm.localId }]));
     }
 
     if (resp.stateChanges) {
@@ -379,6 +415,10 @@ function App() {
     setPartyAt(opening.partyAt);
     setMapScale('city');
     setCampaignSeed(newSeed);
+    setDiscovered([opening.partyAt]);
+    setKnownMarkers([]);
+    setMissions([]);
+    setRemoteArea(false);
     setCanContinue(false);
     setTurnCount(0);
     setDemoLocked(false);
@@ -389,7 +429,7 @@ function App() {
       const oldId = cloudSessionId.current;
       window.MWRPG_CLOUD.saveSession(oldId, { status: 'finished' }).catch(() => {});
       cloudSessionId.current = null;
-      window.MWRPG_CLOUD.createSession(session.user.id, opening, characterId.current, newSeed)
+      window.MWRPG_CLOUD.createSession(session.user.id, opening, characterId.current, newSeed, { discovered: [opening.partyAt] })
         .then(created => { cloudSessionId.current = created.id; })
         .catch(e => console.error('cloudSync: falha ao criar nova campanha', e));
     }
@@ -432,7 +472,15 @@ function App() {
           onFreeText={handleFree}
           allowFree={tweaks.allowFreeText && !demoLocked}
         />
-        <MapPanel partyAt={partyAt} mapScale={mapScale} onEnterInterior={handleEnterInterior} onExit={handleExitInterior} />
+        <MapPanel
+          partyAt={partyAt}
+          mapScale={mapScale}
+          onEnterInterior={handleEnterInterior}
+          onExit={handleExitInterior}
+          accessible={mapAccessible}
+          discovered={discovered}
+          knownMarkers={knownMarkers}
+        />
       </div>
 
       <div className="col col-right">

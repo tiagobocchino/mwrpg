@@ -27,7 +27,7 @@ REGRAS DA SUA RESPOSTA — IMPORTANTE:
     { "label": "texto da opção", "attr": "crp|mnt|alm|none", "needsRoll": true|false }
   ],
   "rollResult": null | { "applied": "como o resultado afetou a cena" },
-  "mapHint": null | { "moveTo": "id_da_localização" | null, "enterInterior": true | false | null, "newLocations": [{"id":"x","x":0-100,"y":0-100,"label":"nome"}] | null },
+  "mapHint": null | { "moveTo": "id_da_localização" | null, "enterInterior": true | false | null, "remoteArea": true | false | null, "revealMission": { "id": "string_curto", "titulo": "string", "localId": "id_da_localização_ou_nome_livre" } | null, "newLocations": [{"id":"x","x":0-100,"y":0-100,"label":"nome"}] | null },
   "stateChanges": null | { "playerHp": delta_int, "playerMp": delta_int, "addTag": "string" | null }
 }
 - Forneça SEMPRE entre 2 e 6 opções. Em combate, 6 opções (use as 6 ações padrão).
@@ -39,6 +39,15 @@ MAPA — DUAS ESCALAS (cidade e interior):
 - Use "enterInterior": true quando a cena entra dentro de um prédio do local atual — SÓ é válido se o jogador já estiver em "tavern", "chapel" ou "lighthouse" (Taberna do Pescador Coxo, Capela de Sant Vinog, Farol Apagado — os únicos com interior desenhado). "docks" (Cais Velho) e "cliff" (Penhasco da Bruma) são cenários externos, sem interior — nunca peça enterInterior nesses dois.
 - Use "enterInterior": false quando a cena sai do interior de volta pro exterior do mesmo local.
 - Não combine "moveTo" e "enterInterior" na mesma resposta — mude de local OU entre/saia de um interior, nunca os dois no mesmo turno.
+
+ÁREA REMOTA — quando o mapa não deve ficar disponível:
+- Locais conhecidos (tavern, chapel, lighthouse, docks, cliff) sempre liberam o mapa — não precisa sinalizar nada pra eles.
+- Se a cena for uma masmorra, ruína, ou qualquer lugar longe da cidade que você está narrando na hora (sem ficha própria de mapa), use "remoteArea": true — isso esconde o mapa até o jogador voltar. Quando a cena voltar pra perto da cidade, use "remoteArea": false. Se não mudou nada desde o turno anterior, deixe "remoteArea": null.
+
+REVELAR MISSÃO — quando um NPC aponta um lugar ainda não visitado:
+- Se, na conversa, um NPC contar de um lugar específico que o grupo ainda não visitou (gancho de missão), preencha "revealMission" com um id curto (ex.: "missao-farol-secreto"), um título curto, e o "localId" do lugar (use o id conhecido se for um dos 5 locais; senão invente um id curto e estável em minúsculas e hífen, tipo "cripta-afogada").
+- Não repita o mesmo "revealMission" em turnos seguintes pra missão já revelada — só na primeira vez que ela é contada.
+- Isso é opcional — a maioria dos turnos não revela missão nenhuma, deixe "revealMission": null.
 
 Mantenha continuidade com o histórico.`;
 

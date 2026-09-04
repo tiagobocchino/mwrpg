@@ -23,9 +23,10 @@ window.MWRPG_CLOUD = (function () {
     return data;
   }
 
-  // characterId e seed são opcionais — mantém compatibilidade com
-  // quem ainda não tem personagem/semente (degradação graciosa).
-  async function createSession(userId, initial, characterId, seed) {
+  // characterId, seed e extra (discovered/known_markers/missions) são
+  // opcionais — mantém compatibilidade com quem ainda não tem
+  // personagem/semente (degradação graciosa).
+  async function createSession(userId, initial, characterId, seed, extra) {
     const { data, error } = await sessionsTable()
       .insert({
         user_id: userId,
@@ -37,6 +38,9 @@ window.MWRPG_CLOUD = (function () {
         mode: initial.mode,
         party_at: initial.partyAt,
         seed: seed || null,
+        discovered: (extra && extra.discovered) || [],
+        known_markers: (extra && extra.knownMarkers) || [],
+        missions: (extra && extra.missions) || [],
         turn_count: 0
       })
       .select()

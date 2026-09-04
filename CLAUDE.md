@@ -352,26 +352,62 @@ Duas frentes:
   perdendo de novo (Manual 05, agora corrigido cobrindo os **dois**
   templates que `signInWithOtp` pode disparar, não só um).
 
-### v0.7 — RAG com Supabase pgvector
+### v0.7 — Mapas avançados: névoa por nó, regra de acesso, marcador de missão ⏳ camada de dados/regra implementada, arte em andamento
+Assembleia 06 (`docs/ASSEMBLEIA-06-MAPAS-AVANCADOS.md`, Finalista 3,
+aprovado pelo Tiago), fase 1 de 2 (dados/regra antes da arte, por
+pedido dele — "se o tempo apertar, o que fica pra trás é o acabamento
+visual, não a mecânica"):
+- **Névoa por nó**: `discovered` (locais visitados) e `known_markers`
+  (locais conhecidos por informação, sem visita — ex.: mission
+  revelada por NPC) — duas listas independentes em
+  `campaign_sessions`, nunca se misturam. `MapPanel` só renderiza um
+  marcador se o local estiver numa das duas; local nunca mencionado
+  simplesmente não aparece.
+- **Regra de acesso ao mapa**: `window.MWRPG_LOCATION_TYPES`
+  (`src/maps.js`) classifica cada local como `cidade` (mapa sempre
+  disponível) — locais fora do registro, ou sinalizados pelo mestre via
+  `mapHint.remoteArea: true`, bloqueiam o `MapPanel` (mensagem "mapa
+  indisponível aqui") até o jogador voltar a um local conhecido.
+- **Marcador de missão mínimo**: `mapHint.revealMission` (id/título/
+  local) — sem sistema de missão completo, o mestre nomeia a missão na
+  hora, dentro do que já está narrando.
+- **Testado localmente (31/08/2026)**: fluxo completo via
+  `handleChoose` real (não simulação isolada) — abertura mostra só
+  `tavern` descoberto; `remoteArea: true` bloqueia o mapa
+  imediatamente; `moveTo` + `revealMission` juntos desbloqueiam o
+  mapa, marcam o novo local como descoberto, e gravam a missão — tudo
+  verificado também em mobile 375px, sem erro de console.
+- **O que o Tiago já consegue ver em produção, mesmo sem a arte nova**:
+  o mapa da cidade só mostra os locais realmente visitados (o resto
+  começa oculto, não os 5 de sempre); uma cena de masmorra/missão
+  distante narrada pelo mestre esconde o painel do mapa até voltar;
+  uma missão contada por um NPC pode aparecer no mapa antes de ser
+  visitada. **O efeito visual de escuridão sobre o mapa não entra
+  nesta versão** (Assembleia 06, gap reconhecido) — fica pra v0.8+.
+- **Ainda não feito**: arte melhorada (exteriores estilizados, mobília
+  real do Kenney Roguelike/RPG pack nos interiores) e o(s) 1-2 local(is)
+  distante(s) curado(s) — próxima fase desta mesma versão.
+
+### v0.8 — RAG com Supabase pgvector
 - 4 coleções: `regras`, `bestiario`, `lore_mundo`, `historico_campanha`.
 - Ingestão dos CSVs descritos no Relatório §4–8.
 - Embeddings via `text-embedding-3-small` (OpenAI) ou `voyage-3-lite`.
 - Mestre puxa top-5 trechos relevantes a cada turno.
 
-### v0.8 — Combate tático
+### v0.9 — Combate tático
 - Hex grid opcional sobre o mapa quando `mode === 'combat'`.
 - Tokens arrastáveis (com snap).
 - HP/foco animados (Framer Motion `layout`).
 
-### v0.9 — Bestiário/itens visuais
+### v0.10 — Bestiário/itens visuais
 - Modal "Compêndio" com pesquisa fuzzy.
 - Cards de monstros, armas, magias usando o design system.
 
-### v0.10 — Som
+### v0.11 — Som
 - Música ambiente low-loop (CC0 do freesound.org).
 - SFX: rolagem de dado, virar pergaminho, selo batendo.
 
-### v0.11 — TTS opcional
+### v0.12 — TTS opcional
 - Web Speech API. Voz "fr-CA" para o mestre (sotaque bretão estilizado).
 
 ### v1.0 — Compartilhamento de campanha

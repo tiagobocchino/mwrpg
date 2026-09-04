@@ -51,4 +51,24 @@ function mwrpgHasInterior(locationId) {
   return !!window.MWRPG_MAPS[locationId + '_interior'];
 }
 
-Object.assign(window, { mwrpgHasInterior });
+// === REGISTRO DE TIPO DE LOCAL (v0.7 — Assembleia 06, Seção 1.3) ===
+// Decide sozinho (sem depender do mestre classificar cena a cena) se
+// o mapa fica disponível: "cidade" sempre disponível; "masmorra" e
+// "missao_distante" ficam bloqueados até o jogador sair de lá. Locais
+// que a narração cria ad-hoc (sem entrada aqui) usam o sinal separado
+// mapHint.remoteArea (src/master.js) em vez de um tipo fixo.
+window.MWRPG_LOCATION_TYPES = {
+  tavern: 'cidade',
+  chapel: 'cidade',
+  lighthouse: 'cidade',
+  docks: 'cidade',
+  cliff: 'cidade'
+};
+
+// Locais desconhecidos (não registrados) tratam como fora da cidade,
+// por segurança — nunca libera mapa por omissão de cadastro.
+function mwrpgLocationType(locationId) {
+  return window.MWRPG_LOCATION_TYPES[locationId] || 'missao_distante';
+}
+
+Object.assign(window, { mwrpgHasInterior, mwrpgLocationType });

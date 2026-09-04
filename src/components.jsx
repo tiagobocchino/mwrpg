@@ -135,16 +135,18 @@ function Option({ index, option, mode, onChoose }) {
 // ============================================================
 // MAPA (v0.5 — Leaflet, duas escalas: cidade + interior)
 // ============================================================
-function MapPanel({ partyAt, mapScale, onEnterInterior, onExit }) {
+function MapPanel({ partyAt, mapScale, onEnterInterior, onExit, accessible, discovered, knownMarkers }) {
   const elRef = useRef(null);
   const leafletRef = useRef(null);
+  const disc = discovered || [];
+  const known = knownMarkers || [];
 
   const interiorId = partyAt + '_interior';
   const showingInterior = mapScale === 'interior' && window.MWRPG_MAPS[interiorId];
   const mapDef = showingInterior ? window.MWRPG_MAPS[interiorId] : window.MWRPG_MAPS.city;
 
   useEffect(() => {
-    if (!elRef.current || !window.L) return;
+    if (!elRef.current || !window.L || accessible === false) return;
     const L = window.L;
     if (leafletRef.current) { leafletRef.current.remove(); leafletRef.current = null; }
 
@@ -164,13 +166,16 @@ function MapPanel({ partyAt, mapScale, onEnterInterior, onExit }) {
 
     (mapDef.markers || []).forEach((m) => {
       const isHere = m.id === partyAt;
-      const icon = L.divIcon({
-        className: 'map-token' + (isHere ? ' map-token-here' : ''),
-        html: '<span></span>',
-        iconSize: [18, 18]
-      });
+      const isDiscovered = isHere || disc.indexOf(m.id) !== -1;
+      const knownOnly = !isDiscovered && known.some(k => k.locationId === m.id);
+      // v0.7 — névoa por nó: local nunca visitado e nunca mencionado por
+      // ninguém simplesmente não aparece (Assembleia 06, Seção 1.2).
+      if (!isDiscovered && !knownOnly) return;
+
+      const cls = 'map-token' + (isHere ? ' map-token-here' : knownOnly ? ' map-token-known' : '');
+      const icon = L.divIcon({ className: cls, html: '<span></span>', iconSize: [18, 18] });
       const marker = L.marker(toLatLng(m.x, m.y), { icon, title: m.label }).addTo(lmap);
-      marker.bindTooltip(m.label, { direction: 'top', offset: [0, -8] });
+      marker.bindTooltip(knownOnly ? `${m.label} (rumor)` : m.label, { direction: 'top', offset: [0, -8] });
       // só o local onde o grupo está agora pode ser "entrado" — o mestre
       // decide pra onde o grupo vai, o mapa só mostra e deixa entrar/sair
       if (isHere && window.mwrpgHasInterior(m.id)) {
@@ -185,7 +190,22 @@ function MapPanel({ partyAt, mapScale, onEnterInterior, onExit }) {
     }
 
     return () => { lmap.remove(); leafletRef.current = null; };
-  }, [mapDef.id, partyAt]);
+  }, [mapDef.id, partyAt, accessible, disc.join(','), known.map(k => k.id).join(',')]);
+
+  // v0.7 — regra de acesso (Assembleia 06, Seção 1.3): fora de uma área
+  // tipo "cidade" (masmorra, missão distante, ou cena remota sinalizada
+  // pelo mestre), o mapa fica indisponível até o jogador sair de lá.
+  if (accessible === false) {
+    return (
+      <div className="parchment map">
+        <div className="section-title"><span>Mapa</span><small>indisponível aqui</small></div>
+        <div className="map-locked">
+          <p>Vocês estão longe de qualquer lugar conhecido — o mapa volta a
+          ficar disponível assim que retornarem a um local familiar.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="parchment map">
@@ -197,6 +217,7 @@ function MapPanel({ partyAt, mapScale, onEnterInterior, onExit }) {
       <div className="map-legend">
         <span><span className="dot" style={{ background: 'oklch(0.50 0.15 25)' }}></span>Vocês</span>
         <span><span className="dot" style={{ background: 'oklch(0.55 0.02 60 / 0.7)' }}></span>Local (clique pra entrar)</span>
+        <span><span className="dot" style={{ background: 'oklch(0.72 0.13 80 / 0.85)' }}></span>Rumor (ainda não visitado)</span>
       </div>
     </div>
   );
